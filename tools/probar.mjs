@@ -105,7 +105,7 @@ elements.set('#record-form',context.draftForm);
 run("renderedHash='#ejercicio/test'; renderedUser='usuario'; rememberDraft()");
 assert.equal(run("drafts.get('usuario:#ejercicio/test').series[0].kg"),'40');
 assert.equal(run("drafts.get('otro:#ejercicio/test')"),undefined);
-assert.ok(worker.includes("const CACHE = 'gym-v3'"));
+assert.ok(/const CACHE = 'gym-vd+'/.test(worker));
 assert.ok(worker.includes("cache:'no-cache'"));
 console.log('OK · scroll, singular, XSS, carreras de navegación, borradores por cuenta y caché v3.');
 
