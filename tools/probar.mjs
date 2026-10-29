@@ -32,10 +32,10 @@ assert.equal(run(`formatSeries({series:[{min:20,km:3}]},{grupo:'cardio'})`),'20 
 assert.ok(run(`progress({grupo:'piernas'},[{fecha:'2026-10-01',series:[{kg:40,reps:10},{kg:50,reps:5}]}])`).includes('650 kg × reps'));
 assert.ok(run(`progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:20},{min:10}]}])`).includes('30 minutos totales'));
 await run('start()'); assert.ok(element('#app').innerHTML.includes('Falta conectar Supabase'));
-run(`catalog = ${JSON.stringify(catalog)}; renderAbru()`);
+run(`catalog = ${JSON.stringify(catalog)}; renderAbru('Dominadas')`);
 assert.equal((element('#app').innerHTML.match(/data-complete=/g)||[]).length,9);
 assert.ok(element('#app').innerHTML.includes('Estás acá'));
-run(`settings.nombres.__abru='abru-colgada'; renderAbru()`);
+run(`settings.nombres.__abru='abru-colgada'; renderAbru('Dominadas')`);
 assert.ok(element('#app').innerHTML.includes('Paso 2 · Estás acá'));
 run(`renderPicker()`); assert.ok(element('#picker-results').innerHTML.includes('Piernas'));
 run(`pickerGroup='piernas'; renderPickerResults()`); assert.ok(element('#picker-results').innerHTML.includes('Sentadilla'));
@@ -74,8 +74,8 @@ context.scrolls = 0;
 context.window.scrollTo = (x,y) => { assert.equal(x,0); assert.equal(y,0); context.scrolls++; };
 context.pending = [];
 context.deferred = () => new Promise(resolve => context.pending.push(resolve));
-run("user={id:'usuario'}; db={from:()=>({select:()=>({gte:()=>({lt:()=>({order:()=>({order:()=>deferred()})})})})})}; location.hash='#mes'");
-const oldRoute = run('route()');
+run("user={id:'usuario'}; db={from:table=>table === 'dias' ? {select:()=>({eq:()=>({order:async()=>({data:[]})})})} : ({select:()=>({gte:()=>({lt:()=>({order:()=>({order:()=>deferred()})})})})})}; location.hash='#mes'");
+const oldRoute = run('route()'); await new Promise(resolve=>setImmediate(resolve));
 context.location.hash='#registrar'; await run('route()');
 const picker = element('#app').innerHTML;
 context.pending.shift()({error:new Error('error viejo')}); await oldRoute;
@@ -83,7 +83,7 @@ assert.equal(element('#app').innerHTML,picker);
 assert.equal(element('#message').textContent,'');
 assert.equal(context.scrolls,1);
 context.location.hash='#mes';
-const monthRoute = run('route()');
+const monthRoute = run('route()'); await new Promise(resolve=>setImmediate(resolve));
 context.pending.shift()({data:[{id:'uno',ejercicio:'test',fecha:'2026-10-01',series:[{kg:1,reps:1}],nota:'<img src=x onerror=alert(1)>'}]});
 await monthRoute;
 assert.ok(element('#app').innerHTML.includes('1 registro · 1 día de movimiento'));
@@ -121,7 +121,7 @@ assert.ok(element('#app').innerHTML.includes('M\u00fasculos que trabaj\u00e1s'))
 console.log('OK - sesion vencida y restauracion del formulario.');
 
 // Presentation checks for the design brief.
-run("settings.nombres.__abru='abru-colgada'; renderAbru()");
+run("settings.nombres.__abru='abru-colgada'; renderAbru('Dominadas')");
 assert.ok(element('#app').innerHTML.includes('1 / 9 pasos superados'));
 assert.ok(element('#app').innerHTML.includes('value="1"'));
 run("pickerGroup='piernas'; renderPicker()");
@@ -129,14 +129,14 @@ assert.ok(element('#picker-results').innerHTML.includes('chip group-piernas'));
 const map = run("muscleMap({musculos:['chest'],secundarios:['biceps']})");
 assert.ok(map.includes('primary-muscle')); assert.ok(map.includes('region secondary'));
 assert.ok(map.includes('primary-swatch')); assert.ok(map.includes('#c9d1cc'));
-assert.equal((read('index.html').match(/class="icon"/g)||[]).length,4);
+assert.equal((read('index.html').match(/class="icon"/g)||[]).length,5);
 assert.ok(read('styles.css').includes('.primary-muscle{fill:#ff6a3d'));
 assert.ok(read('styles.css').includes('.secondary{fill:#38bdf8'));
 console.log('OK - presentacion, mapa, chips, iconos y progreso Abru.');
 
 // All group exercises, including custom ones, remain reachable; search ignores accents/case.
 run("settings.propios=[{id:'propio-test',nombre:'Extensión única',grupo:'piernas'}]; pickerGroup=null; renderPicker()");
-assert.equal((element('#picker-results').innerHTML.match(/data-group=/g)||[]).length,6);
+assert.equal((element('#picker-results').innerHTML.match(/data-group=/g)||[]).length,7);
 run("pickerGroup='piernas'; renderPickerResults()");
 assert.equal((element('#picker-results').innerHTML.match(/data-exercise=/g)||[]).length,catalog.filter(e=>e.grupo==='piernas').length+1);
 assert.ok(element('#picker-results').innerHTML.includes('propio-test'));
@@ -179,3 +179,40 @@ assert.ok(element('#app').innerHTML.includes('Press · Mancuerna'));
 run("editing={id:'edit',fecha:'2026-10-02',implemento:'Barra',series:[{kg:60,reps:5}]}; renderExercise()");
 assert.ok(element('#app').innerHTML.includes('value="Barra" checked'));
 console.log('OK · contador, flechas y selección inicial del implemento.');
+// Calendar, routine management and program grouping.
+context.document.querySelectorAll=()=>[];
+elements.delete('#record-form');
+run("month='2026-02'; settings.rutinas=[{id:'d1',nombre:'Piernas',ejercicios:['Barbell_Squat']}]");
+const calendar=run("summaryHTML([{fecha:'2026-02-03',fue:true,rutina:'d1'},{fecha:'2026-02-04',fue:false}])");
+assert.equal((calendar.match(/data-day=/g)||[]).length,28);
+assert.ok(calendar.includes('D1')); assert.ok(calendar.includes('absent')); assert.ok(calendar.includes('Piernas'));
+run('renderRoutines()'); assert.ok(element('#app').innerHTML.includes('Sentadilla')); assert.ok(element('#app').innerHTML.includes('data-routine-move'));
+run('renderAbru()'); assert.equal((element('#app').innerHTML.match(/class="panel program"/g)||[]).length,1); assert.ok(element('#app').innerHTML.includes('1/9 superados'));
+run("settings.propios.push({id:'otro-programa',nombre:'Otro',grupo:'abru',programa:'Otro programa'}) ; renderAbru()");
+assert.equal((element('#app').innerHTML.match(/class="panel program"/g)||[]).length,2);
+assert.equal(run("parseDaySeries([{}, {kg:'',reps:''}]).length"),0);
+assert.equal(run("parseDaySeries([{kg:'0',reps:'10'}])[0].kg"),0);
+assert.throws(()=>run("parseDaySeries([{kg:'-1',reps:'10'}])"));
+assert.throws(()=>run("parseDaySeries([{kg:'10',reps:''}])"));
+// Retry a partial day save: update the exercise already written, insert only the missing one.
+const stored = new Map(), writes = [];
+let failAttendance = true;
+context.dayDb = {from(table) {
+  const filters={};
+  const query={select(){return this},eq(key,value){filters[key]=value;return this},then(resolve){resolve({data:stored.has(filters.ejercicio)?[{id:stored.get(filters.ejercicio).id}]:[]})}};
+  return {...query,update(payload){writes.push(['update',payload]);stored.set(payload.ejercicio,payload);return {eq(){return this},then(resolve){resolve({error:null})}}},insert:async payload=>{writes.push(['insert',payload]);stored.set(payload.ejercicio,payload);return {error:null}},upsert:async payload=>{writes.push(['day',payload]);return failAttendance?{error:new Error('fallo asistencia')}:{error:null}},delete(){return {eq(){return this},then(resolve){resolve({error:null})}}}};
+}};
+context.dayData={owner:'usuario',fecha:'2026-10-28',fue:true,rutina:'d1',comentario:'nota',entries:[{ejercicio:'Barbell_Squat',implemento:'Barra',nota:'nota ejercicio',series:[{kg:'40,5',reps:'10'}]},{ejercicio:'sin-series',implemento:'',nota:'',series:[{}]}]};
+run('db=dayDb'); await assert.rejects(run('persistDay(dayData)'),/fallo asistencia/);
+assert.equal(context.dayData.entries[0].series[0].kg,'40,5');
+failAttendance=false; await run('persistDay(dayData)');
+assert.equal(writes.filter(([kind])=>kind==='insert').length,1);
+assert.equal(writes.filter(([kind])=>kind==='update').length,1);
+assert.equal(stored.get('Barbell_Squat').series[0].kg,40.5);
+assert.equal(writes.at(-1)[1].user_id,'usuario');
+context.dayData.fue=null; await run('persistDay(dayData)');
+// Prefill every exercise, retain existing entries, never share history across day drafts.
+run("dayDraft={fecha:'2026-10-28',rutina:'d1',entries:[],history:[{ejercicio:'Barbell_Squat',fecha:'2026-10-01',implemento:'Barra',series:[{kg:50,reps:8}]}]}; addRoutineEntries(); addRoutineEntries()");
+assert.equal(run('dayDraft.entries.length'),1); assert.equal(run('dayDraft.entries[0].series[0].kg'),50);
+assert.ok(read('index.html').includes('<span>Resumen</span>')); assert.ok(read('index.html').includes('<span>Rutinas</span>'));
+console.log('OK · calendario, rutinas, programas, validación, precarga y reintentos del día sin duplicados.');

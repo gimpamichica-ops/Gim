@@ -178,6 +178,253 @@
   "secundarios": []
  },
  {
+  "id": "Smith_Machine_Squat",
+  "nombre": "Sentadilla en Smith",
+  "grupo": "piernas",
+  "img": "img/Smith_Machine_Squat/0.jpg",
+  "img2": "img/Smith_Machine_Squat/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "calves",
+   "glutes",
+   "hamstrings",
+   "lower back"
+  ]
+ },
+ {
+  "id": "Hack_Squat",
+  "nombre": "Sentadilla hack",
+  "grupo": "piernas",
+  "img": "img/Hack_Squat/0.jpg",
+  "img2": "img/Hack_Squat/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "calves",
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Front_Barbell_Squat",
+  "nombre": "Sentadilla frontal",
+  "grupo": "piernas",
+  "img": "img/Front_Barbell_Squat/0.jpg",
+  "img2": "img/Front_Barbell_Squat/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "calves",
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Barbell_Lunge",
+  "nombre": "Estocadas con barra",
+  "grupo": "piernas",
+  "img": "img/Barbell_Lunge/0.jpg",
+  "img2": "img/Barbell_Lunge/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "calves",
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Split_Squat_with_Dumbbells",
+  "nombre": "Sentadilla búlgara",
+  "grupo": "piernas",
+  "img": "img/Split_Squat_with_Dumbbells/0.jpg",
+  "img2": "img/Split_Squat_with_Dumbbells/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Dumbbell_Step_Ups",
+  "nombre": "Subidas al cajón",
+  "grupo": "piernas",
+  "img": "img/Dumbbell_Step_Ups/0.jpg",
+  "img2": "img/Dumbbell_Step_Ups/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "calves",
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Stiff-Legged_Dumbbell_Deadlift",
+  "nombre": "Peso muerto con mancuernas",
+  "grupo": "piernas",
+  "img": "img/Stiff-Legged_Dumbbell_Deadlift/0.jpg",
+  "img2": "img/Stiff-Legged_Dumbbell_Deadlift/1.jpg",
+  "musculos": [
+   "hamstrings"
+  ],
+  "secundarios": [
+   "glutes",
+   "lower back"
+  ]
+ },
+ {
+  "id": "Good_Morning",
+  "nombre": "Buenos días",
+  "grupo": "piernas",
+  "img": "img/Good_Morning/0.jpg",
+  "img2": "img/Good_Morning/1.jpg",
+  "musculos": [
+   "hamstrings"
+  ],
+  "secundarios": [
+   "abdominals",
+   "glutes",
+   "lower back"
+  ]
+ },
+ {
+  "id": "Barbell_Glute_Bridge",
+  "nombre": "Puente de glúteos con barra",
+  "grupo": "piernas",
+  "img": "img/Barbell_Glute_Bridge/0.jpg",
+  "img2": "img/Barbell_Glute_Bridge/1.jpg",
+  "musculos": [
+   "glutes"
+  ],
+  "secundarios": [
+   "calves",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Glute_Kickback",
+  "nombre": "Patada de glúteo",
+  "grupo": "piernas",
+  "img": "img/Glute_Kickback/0.jpg",
+  "img2": "img/Glute_Kickback/1.jpg",
+  "musculos": [
+   "glutes"
+  ],
+  "secundarios": [
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "One-Legged_Cable_Kickback",
+  "nombre": "Patada de glúteo en polea",
+  "grupo": "piernas",
+  "img": "img/One-Legged_Cable_Kickback/0.jpg",
+  "img2": "img/One-Legged_Cable_Kickback/1.jpg",
+  "musculos": [
+   "glutes"
+  ],
+  "secundarios": [
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Pull_Through",
+  "nombre": "Pull through en polea",
+  "grupo": "piernas",
+  "img": "img/Pull_Through/0.jpg",
+  "img2": "img/Pull_Through/1.jpg",
+  "musculos": [
+   "glutes"
+  ],
+  "secundarios": [
+   "hamstrings",
+   "lower back"
+  ]
+ },
+ {
+  "id": "Cable_Hip_Adduction",
+  "nombre": "Aductores en polea",
+  "grupo": "piernas",
+  "img": "img/Cable_Hip_Adduction/0.jpg",
+  "img2": "img/Cable_Hip_Adduction/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Thigh_Adductor",
+  "nombre": "Aductores en máquina",
+  "grupo": "piernas",
+  "img": "img/Thigh_Adductor/0.jpg",
+  "img2": "img/Thigh_Adductor/1.jpg",
+  "musculos": [
+   "adductors"
+  ],
+  "secundarios": [
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Cable_Deadlifts",
+  "nombre": "Peso muerto en polea",
+  "grupo": "piernas",
+  "img": "img/Cable_Deadlifts/0.jpg",
+  "img2": "img/Cable_Deadlifts/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "forearms",
+   "glutes",
+   "hamstrings",
+   "lower back"
+  ]
+ },
+ {
+  "id": "Standing_Leg_Curl",
+  "nombre": "Curl femoral de pie",
+  "grupo": "piernas",
+  "img": "img/Standing_Leg_Curl/0.jpg",
+  "img2": "img/Standing_Leg_Curl/1.jpg",
+  "musculos": [
+   "hamstrings"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Calf_Press_On_The_Leg_Press_Machine",
+  "nombre": "Gemelos en prensa",
+  "grupo": "piernas",
+  "img": "img/Calf_Press_On_The_Leg_Press_Machine/0.jpg",
+  "img2": "img/Calf_Press_On_The_Leg_Press_Machine/1.jpg",
+  "musculos": [
+   "calves"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Smith_Machine_Calf_Raise",
+  "nombre": "Gemelos en Smith",
+  "grupo": "piernas",
+  "img": "img/Smith_Machine_Calf_Raise/0.jpg",
+  "img2": "img/Smith_Machine_Calf_Raise/1.jpg",
+  "musculos": [
+   "calves"
+  ],
+  "secundarios": []
+ },
+ {
   "id": "Barbell_Bench_Press_-_Medium_Grip",
   "nombre": "Press de banca",
   "grupo": "pecho",
@@ -274,6 +521,169 @@
   "grupo": "pecho",
   "img": "img/Pushups/0.jpg",
   "img2": "img/Pushups/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Dumbbell_Bench_Press",
+  "nombre": "Press de pecho con mancuernas",
+  "grupo": "pecho",
+  "img": "img/Dumbbell_Bench_Press/0.jpg",
+  "img2": "img/Dumbbell_Bench_Press/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Barbell_Incline_Bench_Press_-_Medium_Grip",
+  "nombre": "Press inclinado con barra",
+  "grupo": "pecho",
+  "img": "img/Barbell_Incline_Bench_Press_-_Medium_Grip/0.jpg",
+  "img2": "img/Barbell_Incline_Bench_Press_-_Medium_Grip/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Smith_Machine_Bench_Press",
+  "nombre": "Press en Smith",
+  "grupo": "pecho",
+  "img": "img/Smith_Machine_Bench_Press/0.jpg",
+  "img2": "img/Smith_Machine_Bench_Press/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Machine_Bench_Press",
+  "nombre": "Press de pecho en máquina",
+  "grupo": "pecho",
+  "img": "img/Machine_Bench_Press/0.jpg",
+  "img2": "img/Machine_Bench_Press/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Leverage_Incline_Chest_Press",
+  "nombre": "Press inclinado en máquina",
+  "grupo": "pecho",
+  "img": "img/Leverage_Incline_Chest_Press/0.jpg",
+  "img2": "img/Leverage_Incline_Chest_Press/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Incline_Dumbbell_Flyes",
+  "nombre": "Aperturas inclinadas",
+  "grupo": "pecho",
+  "img": "img/Incline_Dumbbell_Flyes/0.jpg",
+  "img2": "img/Incline_Dumbbell_Flyes/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Bent-Arm_Dumbbell_Pullover",
+  "nombre": "Pullover con mancuerna",
+  "grupo": "pecho",
+  "img": "img/Bent-Arm_Dumbbell_Pullover/0.jpg",
+  "img2": "img/Bent-Arm_Dumbbell_Pullover/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "lats",
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Low_Cable_Crossover",
+  "nombre": "Cruce de poleas bajo",
+  "grupo": "pecho",
+  "img": "img/Low_Cable_Crossover/0.jpg",
+  "img2": "img/Low_Cable_Crossover/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Flat_Bench_Cable_Flyes",
+  "nombre": "Aperturas en polea (banco)",
+  "grupo": "pecho",
+  "img": "img/Flat_Bench_Cable_Flyes/0.jpg",
+  "img2": "img/Flat_Bench_Cable_Flyes/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Incline_Cable_Flye",
+  "nombre": "Aperturas inclinadas en polea",
+  "grupo": "pecho",
+  "img": "img/Incline_Cable_Flye/0.jpg",
+  "img2": "img/Incline_Cable_Flye/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Cable_Chest_Press",
+  "nombre": "Press de pecho en polea",
+  "grupo": "pecho",
+  "img": "img/Cable_Chest_Press/0.jpg",
+  "img2": "img/Cable_Chest_Press/1.jpg",
+  "musculos": [
+   "chest"
+  ],
+  "secundarios": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Incline_Cable_Chest_Press",
+  "nombre": "Press inclinado en polea",
+  "grupo": "pecho",
+  "img": "img/Incline_Cable_Chest_Press/0.jpg",
+  "img2": "img/Incline_Cable_Chest_Press/1.jpg",
   "musculos": [
    "chest"
   ],
@@ -416,6 +826,224 @@
   "secundarios": []
  },
  {
+  "id": "Chin-Up",
+  "nombre": "Dominadas supinas",
+  "grupo": "espalda",
+  "img": "img/Chin-Up/0.jpg",
+  "img2": "img/Chin-Up/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "biceps",
+   "forearms",
+   "middle back"
+  ]
+ },
+ {
+  "id": "Close-Grip_Front_Lat_Pulldown",
+  "nombre": "Jalón agarre cerrado",
+  "grupo": "espalda",
+  "img": "img/Close-Grip_Front_Lat_Pulldown/0.jpg",
+  "img2": "img/Close-Grip_Front_Lat_Pulldown/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "biceps",
+   "middle back",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "V-Bar_Pulldown",
+  "nombre": "Jalón con triángulo",
+  "grupo": "espalda",
+  "img": "img/V-Bar_Pulldown/0.jpg",
+  "img2": "img/V-Bar_Pulldown/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "biceps",
+   "middle back",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Underhand_Cable_Pulldowns",
+  "nombre": "Jalón supino",
+  "grupo": "espalda",
+  "img": "img/Underhand_Cable_Pulldowns/0.jpg",
+  "img2": "img/Underhand_Cable_Pulldowns/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "biceps",
+   "middle back",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "One_Arm_Lat_Pulldown",
+  "nombre": "Jalón a una mano",
+  "grupo": "espalda",
+  "img": "img/One_Arm_Lat_Pulldown/0.jpg",
+  "img2": "img/One_Arm_Lat_Pulldown/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "biceps",
+   "middle back"
+  ]
+ },
+ {
+  "id": "Straight-Arm_Pulldown",
+  "nombre": "Pullover en polea (brazos rectos)",
+  "grupo": "espalda",
+  "img": "img/Straight-Arm_Pulldown/0.jpg",
+  "img2": "img/Straight-Arm_Pulldown/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Rope_Straight-Arm_Pulldown",
+  "nombre": "Pullover en polea con soga",
+  "grupo": "espalda",
+  "img": "img/Rope_Straight-Arm_Pulldown/0.jpg",
+  "img2": "img/Rope_Straight-Arm_Pulldown/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Seated_One-arm_Cable_Pulley_Rows",
+  "nombre": "Remo en polea a una mano",
+  "grupo": "espalda",
+  "img": "img/Seated_One-arm_Cable_Pulley_Rows/0.jpg",
+  "img2": "img/Seated_One-arm_Cable_Pulley_Rows/1.jpg",
+  "musculos": [
+   "middle back"
+  ],
+  "secundarios": [
+   "biceps",
+   "lats",
+   "traps"
+  ]
+ },
+ {
+  "id": "Elevated_Cable_Rows",
+  "nombre": "Remo en polea alta",
+  "grupo": "espalda",
+  "img": "img/Elevated_Cable_Rows/0.jpg",
+  "img2": "img/Elevated_Cable_Rows/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "middle back",
+   "traps"
+  ]
+ },
+ {
+  "id": "Leverage_Iso_Row",
+  "nombre": "Remo en máquina",
+  "grupo": "espalda",
+  "img": "img/Leverage_Iso_Row/0.jpg",
+  "img2": "img/Leverage_Iso_Row/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "biceps",
+   "middle back"
+  ]
+ },
+ {
+  "id": "Leverage_High_Row",
+  "nombre": "Remo alto en máquina",
+  "grupo": "espalda",
+  "img": "img/Leverage_High_Row/0.jpg",
+  "img2": "img/Leverage_High_Row/1.jpg",
+  "musculos": [
+   "middle back"
+  ],
+  "secundarios": [
+   "lats"
+  ]
+ },
+ {
+  "id": "Dumbbell_Incline_Row",
+  "nombre": "Remo en banco inclinado",
+  "grupo": "espalda",
+  "img": "img/Dumbbell_Incline_Row/0.jpg",
+  "img2": "img/Dumbbell_Incline_Row/1.jpg",
+  "musculos": [
+   "middle back"
+  ],
+  "secundarios": [
+   "biceps",
+   "forearms",
+   "lats",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Smith_Machine_Bent_Over_Row",
+  "nombre": "Remo en Smith",
+  "grupo": "espalda",
+  "img": "img/Smith_Machine_Bent_Over_Row/0.jpg",
+  "img2": "img/Smith_Machine_Bent_Over_Row/1.jpg",
+  "musculos": [
+   "middle back"
+  ],
+  "secundarios": [
+   "biceps",
+   "lats",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Inverted_Row",
+  "nombre": "Remo australiano",
+  "grupo": "espalda",
+  "img": "img/Inverted_Row/0.jpg",
+  "img2": "img/Inverted_Row/1.jpg",
+  "musculos": [
+   "middle back"
+  ],
+  "secundarios": [
+   "lats"
+  ]
+ },
+ {
+  "id": "Dumbbell_Shrug",
+  "nombre": "Encogimientos con mancuernas",
+  "grupo": "espalda",
+  "img": "img/Dumbbell_Shrug/0.jpg",
+  "img2": "img/Dumbbell_Shrug/1.jpg",
+  "musculos": [
+   "traps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Cable_Shrugs",
+  "nombre": "Encogimientos en polea",
+  "grupo": "espalda",
+  "img": "img/Cable_Shrugs/0.jpg",
+  "img2": "img/Cable_Shrugs/1.jpg",
+  "musculos": [
+   "traps"
+  ],
+  "secundarios": []
+ },
+ {
   "id": "Standing_Military_Press",
   "nombre": "Press militar",
   "grupo": "hombros",
@@ -515,6 +1143,153 @@
   ]
  },
  {
+  "id": "Seated_Dumbbell_Press",
+  "nombre": "Press sentado con mancuernas",
+  "grupo": "hombros",
+  "img": "img/Seated_Dumbbell_Press/0.jpg",
+  "img2": "img/Seated_Dumbbell_Press/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": [
+   "triceps"
+  ]
+ },
+ {
+  "id": "Machine_Shoulder_Military_Press",
+  "nombre": "Press de hombros en máquina",
+  "grupo": "hombros",
+  "img": "img/Machine_Shoulder_Military_Press/0.jpg",
+  "img2": "img/Machine_Shoulder_Military_Press/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": [
+   "triceps"
+  ]
+ },
+ {
+  "id": "Smith_Machine_Overhead_Shoulder_Press",
+  "nombre": "Press de hombros en Smith",
+  "grupo": "hombros",
+  "img": "img/Smith_Machine_Overhead_Shoulder_Press/0.jpg",
+  "img2": "img/Smith_Machine_Overhead_Shoulder_Press/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": [
+   "triceps"
+  ]
+ },
+ {
+  "id": "Cable_Seated_Lateral_Raise",
+  "nombre": "Vuelos laterales en polea",
+  "grupo": "hombros",
+  "img": "img/Cable_Seated_Lateral_Raise/0.jpg",
+  "img2": "img/Cable_Seated_Lateral_Raise/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": [
+   "middle back",
+   "traps"
+  ]
+ },
+ {
+  "id": "Standing_Low-Pulley_Deltoid_Raise",
+  "nombre": "Vuelo lateral a una mano en polea",
+  "grupo": "hombros",
+  "img": "img/Standing_Low-Pulley_Deltoid_Raise/0.jpg",
+  "img2": "img/Standing_Low-Pulley_Deltoid_Raise/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": [
+   "forearms"
+  ]
+ },
+ {
+  "id": "Front_Cable_Raise",
+  "nombre": "Vuelos frontales en polea",
+  "grupo": "hombros",
+  "img": "img/Front_Cable_Raise/0.jpg",
+  "img2": "img/Front_Cable_Raise/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Cable_Rear_Delt_Fly",
+  "nombre": "Pájaros en polea",
+  "grupo": "hombros",
+  "img": "img/Cable_Rear_Delt_Fly/0.jpg",
+  "img2": "img/Cable_Rear_Delt_Fly/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Reverse_Machine_Flyes",
+  "nombre": "Pájaros en máquina",
+  "grupo": "hombros",
+  "img": "img/Reverse_Machine_Flyes/0.jpg",
+  "img2": "img/Reverse_Machine_Flyes/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Seated_Bent-Over_Rear_Delt_Raise",
+  "nombre": "Pájaros sentado",
+  "grupo": "hombros",
+  "img": "img/Seated_Bent-Over_Rear_Delt_Raise/0.jpg",
+  "img2": "img/Seated_Bent-Over_Rear_Delt_Raise/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Upright_Cable_Row",
+  "nombre": "Remo al mentón en polea",
+  "grupo": "hombros",
+  "img": "img/Upright_Cable_Row/0.jpg",
+  "img2": "img/Upright_Cable_Row/1.jpg",
+  "musculos": [
+   "traps"
+  ],
+  "secundarios": [
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Cable_Shoulder_Press",
+  "nombre": "Press de hombros en polea",
+  "grupo": "hombros",
+  "img": "img/Cable_Shoulder_Press/0.jpg",
+  "img2": "img/Cable_Shoulder_Press/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": [
+   "triceps"
+  ]
+ },
+ {
+  "id": "External_Rotation_with_Cable",
+  "nombre": "Rotación externa en polea",
+  "grupo": "hombros",
+  "img": "img/External_Rotation_with_Cable/0.jpg",
+  "img2": "img/External_Rotation_with_Cable/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": []
+ },
+ {
   "id": "Barbell_Curl",
   "nombre": "Curl con barra",
   "grupo": "brazos",
@@ -603,6 +1378,265 @@
   "img2": "img/Cable_Rope_Overhead_Triceps_Extension/1.jpg",
   "musculos": [
    "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "EZ-Bar_Curl",
+  "nombre": "Curl con barra W",
+  "grupo": "brazos",
+  "img": "img/EZ-Bar_Curl/0.jpg",
+  "img2": "img/EZ-Bar_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Incline_Dumbbell_Curl",
+  "nombre": "Curl inclinado",
+  "grupo": "brazos",
+  "img": "img/Incline_Dumbbell_Curl/0.jpg",
+  "img2": "img/Incline_Dumbbell_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Concentration_Curls",
+  "nombre": "Curl concentrado",
+  "grupo": "brazos",
+  "img": "img/Concentration_Curls/0.jpg",
+  "img2": "img/Concentration_Curls/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": [
+   "forearms"
+  ]
+ },
+ {
+  "id": "Spider_Curl",
+  "nombre": "Curl araña",
+  "grupo": "brazos",
+  "img": "img/Spider_Curl/0.jpg",
+  "img2": "img/Spider_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Machine_Bicep_Curl",
+  "nombre": "Curl en máquina",
+  "grupo": "brazos",
+  "img": "img/Machine_Bicep_Curl/0.jpg",
+  "img2": "img/Machine_Bicep_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Standing_Biceps_Cable_Curl",
+  "nombre": "Curl en polea",
+  "grupo": "brazos",
+  "img": "img/Standing_Biceps_Cable_Curl/0.jpg",
+  "img2": "img/Standing_Biceps_Cable_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Cable_Hammer_Curls_-_Rope_Attachment",
+  "nombre": "Curl martillo en polea",
+  "grupo": "brazos",
+  "img": "img/Cable_Hammer_Curls_-_Rope_Attachment/0.jpg",
+  "img2": "img/Cable_Hammer_Curls_-_Rope_Attachment/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Cable_Preacher_Curl",
+  "nombre": "Curl Scott en polea",
+  "grupo": "brazos",
+  "img": "img/Cable_Preacher_Curl/0.jpg",
+  "img2": "img/Cable_Preacher_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": [
+   "forearms"
+  ]
+ },
+ {
+  "id": "Overhead_Cable_Curl",
+  "nombre": "Curl en polea alta",
+  "grupo": "brazos",
+  "img": "img/Overhead_Cable_Curl/0.jpg",
+  "img2": "img/Overhead_Cable_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Reverse_Cable_Curl",
+  "nombre": "Curl invertido en polea",
+  "grupo": "brazos",
+  "img": "img/Reverse_Cable_Curl/0.jpg",
+  "img2": "img/Reverse_Cable_Curl/1.jpg",
+  "musculos": [
+   "biceps"
+  ],
+  "secundarios": [
+   "forearms"
+  ]
+ },
+ {
+  "id": "Triceps_Pushdown_-_V-Bar_Attachment",
+  "nombre": "Tríceps en polea con V",
+  "grupo": "brazos",
+  "img": "img/Triceps_Pushdown_-_V-Bar_Attachment/0.jpg",
+  "img2": "img/Triceps_Pushdown_-_V-Bar_Attachment/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Reverse_Grip_Triceps_Pushdown",
+  "nombre": "Tríceps en polea agarre invertido",
+  "grupo": "brazos",
+  "img": "img/Reverse_Grip_Triceps_Pushdown/0.jpg",
+  "img2": "img/Reverse_Grip_Triceps_Pushdown/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Cable_One_Arm_Tricep_Extension",
+  "nombre": "Tríceps a una mano en polea",
+  "grupo": "brazos",
+  "img": "img/Cable_One_Arm_Tricep_Extension/0.jpg",
+  "img2": "img/Cable_One_Arm_Tricep_Extension/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Triceps_Overhead_Extension_with_Rope",
+  "nombre": "Tríceps tras nuca con soga",
+  "grupo": "brazos",
+  "img": "img/Triceps_Overhead_Extension_with_Rope/0.jpg",
+  "img2": "img/Triceps_Overhead_Extension_with_Rope/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Close-Grip_Barbell_Bench_Press",
+  "nombre": "Press cerrado",
+  "grupo": "brazos",
+  "img": "img/Close-Grip_Barbell_Bench_Press/0.jpg",
+  "img2": "img/Close-Grip_Barbell_Bench_Press/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": [
+   "chest",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "EZ-Bar_Skullcrusher",
+  "nombre": "Rompecráneos con barra W",
+  "grupo": "brazos",
+  "img": "img/EZ-Bar_Skullcrusher/0.jpg",
+  "img2": "img/EZ-Bar_Skullcrusher/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": [
+   "forearms"
+  ]
+ },
+ {
+  "id": "Tricep_Dumbbell_Kickback",
+  "nombre": "Patada de tríceps",
+  "grupo": "brazos",
+  "img": "img/Tricep_Dumbbell_Kickback/0.jpg",
+  "img2": "img/Tricep_Dumbbell_Kickback/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Standing_Dumbbell_Triceps_Extension",
+  "nombre": "Tríceps tras nuca con mancuerna",
+  "grupo": "brazos",
+  "img": "img/Standing_Dumbbell_Triceps_Extension/0.jpg",
+  "img2": "img/Standing_Dumbbell_Triceps_Extension/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Dips_-_Triceps_Version",
+  "nombre": "Fondos de tríceps",
+  "grupo": "brazos",
+  "img": "img/Dips_-_Triceps_Version/0.jpg",
+  "img2": "img/Dips_-_Triceps_Version/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": [
+   "chest",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Bench_Dips",
+  "nombre": "Fondos en banco",
+  "grupo": "brazos",
+  "img": "img/Bench_Dips/0.jpg",
+  "img2": "img/Bench_Dips/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": [
+   "chest",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Machine_Triceps_Extension",
+  "nombre": "Tríceps en máquina",
+  "grupo": "brazos",
+  "img": "img/Machine_Triceps_Extension/0.jpg",
+  "img2": "img/Machine_Triceps_Extension/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Cable_Wrist_Curl",
+  "nombre": "Antebrazos en polea",
+  "grupo": "brazos",
+  "img": "img/Cable_Wrist_Curl/0.jpg",
+  "img2": "img/Cable_Wrist_Curl/1.jpg",
+  "musculos": [
+   "forearms"
   ],
   "secundarios": []
  },
@@ -700,9 +1734,234 @@
   ]
  },
  {
+  "id": "Jogging_Treadmill",
+  "nombre": "Cinta trotando",
+  "grupo": "cardio",
+  "img": "img/Jogging_Treadmill/0.jpg",
+  "img2": "img/Jogging_Treadmill/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Recumbent_Bike",
+  "nombre": "Bici reclinada",
+  "grupo": "cardio",
+  "img": "img/Recumbent_Bike/0.jpg",
+  "img2": "img/Recumbent_Bike/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "calves",
+   "glutes",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Rope_Jumping",
+  "nombre": "Soga",
+  "grupo": "cardio",
+  "img": "img/Rope_Jumping/0.jpg",
+  "img2": "img/Rope_Jumping/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "calves",
+   "hamstrings"
+  ]
+ },
+ {
+  "id": "Crunches",
+  "nombre": "Abdominales (crunch)",
+  "grupo": "abdomen",
+  "img": "img/Crunches/0.jpg",
+  "img2": "img/Crunches/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Sit-Up",
+  "nombre": "Abdominales completos",
+  "grupo": "abdomen",
+  "img": "img/Sit-Up/0.jpg",
+  "img2": "img/Sit-Up/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Reverse_Crunch",
+  "nombre": "Abdominales inversos",
+  "grupo": "abdomen",
+  "img": "img/Reverse_Crunch/0.jpg",
+  "img2": "img/Reverse_Crunch/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Plank",
+  "nombre": "Plancha",
+  "grupo": "abdomen",
+  "img": "img/Plank/0.jpg",
+  "img2": "img/Plank/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Side_Bridge",
+  "nombre": "Plancha lateral",
+  "grupo": "abdomen",
+  "img": "img/Side_Bridge/0.jpg",
+  "img2": "img/Side_Bridge/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": [
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Hanging_Leg_Raise",
+  "nombre": "Elevación de piernas colgado",
+  "grupo": "abdomen",
+  "img": "img/Hanging_Leg_Raise/0.jpg",
+  "img2": "img/Hanging_Leg_Raise/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Flat_Bench_Lying_Leg_Raise",
+  "nombre": "Elevación de piernas en banco",
+  "grupo": "abdomen",
+  "img": "img/Flat_Bench_Lying_Leg_Raise/0.jpg",
+  "img2": "img/Flat_Bench_Lying_Leg_Raise/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Russian_Twist",
+  "nombre": "Giros rusos",
+  "grupo": "abdomen",
+  "img": "img/Russian_Twist/0.jpg",
+  "img2": "img/Russian_Twist/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": [
+   "lower back"
+  ]
+ },
+ {
+  "id": "Mountain_Climbers",
+  "nombre": "Escaladores",
+  "grupo": "abdomen",
+  "img": "img/Mountain_Climbers/0.jpg",
+  "img2": "img/Mountain_Climbers/1.jpg",
+  "musculos": [
+   "quadriceps"
+  ],
+  "secundarios": [
+   "chest",
+   "hamstrings",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Ab_Roller",
+  "nombre": "Rueda abdominal",
+  "grupo": "abdomen",
+  "img": "img/Ab_Roller/0.jpg",
+  "img2": "img/Ab_Roller/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": [
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Ab_Crunch_Machine",
+  "nombre": "Abdominales en máquina",
+  "grupo": "abdomen",
+  "img": "img/Ab_Crunch_Machine/0.jpg",
+  "img2": "img/Ab_Crunch_Machine/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Cable_Crunch",
+  "nombre": "Abdominales en polea",
+  "grupo": "abdomen",
+  "img": "img/Cable_Crunch/0.jpg",
+  "img2": "img/Cable_Crunch/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
+  "id": "Standing_Cable_Wood_Chop",
+  "nombre": "Leñador en polea",
+  "grupo": "abdomen",
+  "img": "img/Standing_Cable_Wood_Chop/0.jpg",
+  "img2": "img/Standing_Cable_Wood_Chop/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": [
+   "shoulders"
+  ]
+ },
+ {
+  "id": "Pallof_Press",
+  "nombre": "Press Pallof",
+  "grupo": "abdomen",
+  "img": "img/Pallof_Press/0.jpg",
+  "img2": "img/Pallof_Press/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": [
+   "chest",
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "Air_Bike",
+  "nombre": "Bicicleta abdominal",
+  "grupo": "abdomen",
+  "img": "img/Air_Bike/0.jpg",
+  "img2": "img/Air_Bike/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
   "id": "abru-colgada",
   "nombre": "1. Colgada pasiva",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Pullups/0.jpg",
   "img2": "img/Pullups/1.jpg",
   "musculos": [
@@ -720,6 +1979,7 @@
   "id": "abru-escapular",
   "nombre": "2. Retracción escapular",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Scapular_Pull-Up/0.jpg",
   "img2": "img/Scapular_Pull-Up/1.jpg",
   "musculos": [
@@ -736,6 +1996,7 @@
   "id": "abru-australiana",
   "nombre": "3. Remo australiano",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Inverted_Row/0.jpg",
   "img2": "img/Inverted_Row/1.jpg",
   "musculos": [
@@ -751,6 +2012,7 @@
   "id": "abru-jalon",
   "nombre": "4. Jalón al pecho",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Wide-Grip_Lat_Pulldown/0.jpg",
   "img2": "img/Wide-Grip_Lat_Pulldown/1.jpg",
   "musculos": [
@@ -768,6 +2030,7 @@
   "id": "abru-banda",
   "nombre": "5. Dominada asistida (banda o máquina)",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Band_Assisted_Pull-Up/0.jpg",
   "img2": "img/Band_Assisted_Pull-Up/1.jpg",
   "musculos": [
@@ -785,6 +2048,7 @@
   "id": "abru-isometrica",
   "nombre": "6. Isometría arriba",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Chin-Up/0.jpg",
   "img2": "img/Chin-Up/1.jpg",
   "musculos": [
@@ -803,6 +2067,7 @@
   "id": "abru-negativa",
   "nombre": "7. Negativas",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Pullups/0.jpg",
   "img2": "img/Pullups/1.jpg",
   "musculos": [
@@ -819,6 +2084,7 @@
   "id": "abru-chinup",
   "nombre": "8. Primera chin-up (palmas hacia vos)",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Chin-Up/0.jpg",
   "img2": "img/Chin-Up/1.jpg",
   "musculos": [
@@ -836,6 +2102,7 @@
   "id": "abru-dominada",
   "nombre": "9. ¡Dominada completa!",
   "grupo": "abru",
+  "programa": "Dominadas",
   "img": "img/Pullups/0.jpg",
   "img2": "img/Pullups/1.jpg",
   "musculos": [

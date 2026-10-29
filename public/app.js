@@ -3,18 +3,19 @@ const $ = selector => document.querySelector(selector);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const monthLabel = value => new Date(`${value}-02T12:00:00`).toLocaleDateString('es-AR',{month:'long',year:'numeric'}).replace(' de ',' ');
-const groups = {piernas:'Piernas',pecho:'Pecho',espalda:'Espalda',hombros:'Hombros',brazos:'Brazos',cardio:'Cardio',abru:'Ayuda a Abru'};
-let db, user, catalog = [], settings = {nombres:{},propios:[]}, month = today().slice(0,7), group = 'piernas', monthRows = [], exerciseRows = [], current, editing, busy = false, routeVersion = 0;
+const groups = {piernas:'Piernas',pecho:'Pecho',espalda:'Espalda',hombros:'Hombros',brazos:'Brazos',cardio:'Cardio',abdomen:'Abdomen',abru:'Ayuda a Abru'};
+let db, user, catalog = [], settings = {nombres:{},propios:[],rutinas:[]}, month = today().slice(0,7), group = 'piernas', monthRows = [], exerciseRows = [], current, editing, busy = false, routeVersion = 0;
 const name = e => settings.nombres[e.id] || e.nombre;
 const exercises = () => [...catalog,...settings.propios];
 const icon = path => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${path}"/></svg>`;
 const implementsList = ['Barra','Mancuerna','Máquina','Polea','Peso corporal'];
 const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-const groupIcons = {piernas:'m8 3 2 8-4 10m10-18-2 8 4 10M10 11h4',pecho:'M4 5v14h16V5M4 12h16M12 5v14',espalda:'M4 4h16l-4 16H8ZM12 4v16',hombros:'M3 16V8l5-4h8l5 4v8M8 4v12m8-12v12',brazos:'m4 17 4-10 4 3 3-6 5 3-3 13H8Z',cardio:'m3 12 4 0 3-8 4 16 3-8h4',abru:'m5 17 6-6 4 2 5-9M14 4h6v6'};
+const groupIcons = {piernas:'m8 3 2 8-4 10m10-18-2 8 4 10M10 11h4',pecho:'M4 5v14h16V5M4 12h16M12 5v14',espalda:'M4 4h16l-4 16H8ZM12 4v16',hombros:'M3 16V8l5-4h8l5 4v8M8 4v12m8-12v12',brazos:'m4 17 4-10 4 3 3-6 5 3-3 13H8Z',cardio:'m3 12 4 0 3-8 4 16 3-8h4',abdomen:'M8 3h8l2 18H6ZM12 3v18M7 9h10M7 15h10',abru:'m5 17 6-6 4 2 5-9M14 4h6v6'};
 let pickerGroup = null;
 const drafts = new Map();
 let renderedHash, renderedUser;
 function rememberDraft() {
+  rememberDay();
   const form = $('#record-form');
   if (!form?.elements || !renderedHash) return;
   drafts.set(`${renderedUser}:${renderedHash}`,{fecha:form.elements.fecha.value,nota:form.elements.nota.value,implemento:form.querySelector('input[name=implemento]:checked')?.value || '',series:[...form.querySelectorAll('.series')].map(row => Object.fromEntries([...row.querySelectorAll('input')].map(input => [input.dataset.field,input.value])))});
@@ -22,7 +23,7 @@ function rememberDraft() {
 function message(text = '') { $('#message').textContent = text; $('#message').hidden = !text; }
 function check(result) { if (result.error) throw result.error; return result.data; }
 function fail(error) {
-  if (error.status === 401 || ['PGRST301','PGRST303'].includes(error.code)) { rememberDraft(); renderedHash = undefined; ++routeVersion; user = null; login(); }
+  if (error.status === 401 || ['PGRST301','PGRST303'].includes(error.code)) { rememberDraft(); renderedHash = undefined; ++routeVersion; selectionTarget = null; dayDraft = null; user = null; login(); }
   message(`No pudimos completar la acción. ${error.message || 'Revisá tu conexión e intentá de nuevo.'}`); }
 function formatSeries(row, e) { return row.series.map(s => e?.grupo === 'cardio' ? `${s.min} min${s.km ? ` · ${s.km} km` : ''}` : `${s.kg || 0} kg × ${s.reps} ${e?.unidad || 'reps'}`).join(' / '); }
 function image(e, cls = '') { return e.img ? `<img class="${cls}" src="${escapeHTML(e.img)}" alt="${escapeHTML(name(e))}" loading="lazy">` : `<div class="initial">${escapeHTML(name(e).charAt(0).toUpperCase())}</div>`; }
@@ -37,9 +38,9 @@ function login() {
 }
 async function loadSettings() {
   const owner = user;
-  const data = check(await db.from('ajustes').select('nombres,propios').eq('user_id',owner.id).maybeSingle());
+  const data = check(await db.from('ajustes').select('nombres,propios,rutinas').eq('user_id',owner.id).maybeSingle());
   if (user !== owner) return;
-  settings = {nombres:data?.nombres || {},propios:data?.propios || []};
+  settings = {nombres:data?.nombres || {},propios:data?.propios || [],rutinas:data?.rutinas || []};
 }
 async function saveSettings(next) {
   const owner = user;
@@ -50,8 +51,10 @@ async function route() {
   if (!user) return;
   rememberDraft();
   message(); $('#nav').hidden = $('#logout').hidden = false;
-  const hash = location.hash || '#mes';
-  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active',a.hash === (hash.startsWith('#ejercicio/') ? '#registrar' : hash)));
+  if (location.hash === '#mes') location.hash = '#resumen';
+  const hash = location.hash || '#resumen';
+  if (hash !== '#registrar' && !hash.startsWith('#dia/')) selectionTarget = null;
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active',a.hash === (hash.startsWith('#ejercicio/') ? '#registrar' : hash.startsWith('#dia/') ? '#resumen' : hash.startsWith('#abru/') ? '#abru' : hash)));
   try {
     if (hash.startsWith('#ejercicio/')) {
       const [,id,recordId] = hash.split('/');
@@ -63,7 +66,9 @@ async function route() {
       if (recordId && !editing) throw new Error('Ese registro ya no existe.');
       renderExercise();
     } else if (hash === '#registrar') { pickerGroup = null; renderPicker(); }
-    else if (hash === '#abru') renderAbru();
+    else if (hash === '#rutinas') renderRoutines();
+    else if (hash.startsWith('#dia/')) await openDay(hash.slice(5),version);
+    else if (hash.startsWith('#abru')) renderAbru(hash.split('/')[1] ? decodeURIComponent(hash.split('/')[1]) : null);
     else await renderMonth(version);
     if (version === routeVersion) { renderedHash = hash; renderedUser = user.id; window.scrollTo(0,0); }
   } catch (error) { if (version === routeVersion) fail(error); }
@@ -71,11 +76,13 @@ async function route() {
 async function renderMonth(version) {
   const [year,m] = month.split('-').map(Number);
   const end = new Date(year,m,1); const next = `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-01`;
+  const attendance = check(await db.from('dias').select('*').eq('user_id',user.id).order('fecha',{ascending:false}));
   const rows = check(await db.from('registros').select('*').gte('fecha',`${month}-01`).lt('fecha',next).order('fecha',{ascending:false}).order('creado',{ascending:false}));
   if (version !== routeVersion) return;
   monthRows = rows;
-  const days = [...new Set(rows.map(row => row.fecha))];
-  $('#app').innerHTML = `<p class="eyebrow">Tu entrenamiento, día a día</p><div class="row between month"><button data-month="-1" aria-label="Mes anterior">‹</button><h1>${escapeHTML(monthLabel(month))}</h1><button data-month="1" aria-label="Mes siguiente">›</button></div><a class="primary button wide" href="#registrar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</a><p class="muted">${rows.length} registro${rows.length === 1 ? '' : 's'} · ${days.length} día${days.length === 1 ? '' : 's'} de movimiento</p>${days.length ? days.map(day => `<section class="day"><div class="dayhead"><span class="date-badge"><strong>${Number(day.slice(-2))}</strong><span>${new Date(`${day}T12:00:00`).toLocaleDateString('es-AR',{weekday:'short'})}</span></span><h2>Tu entrenamiento</h2></div>${rows.filter(row => row.fecha === day).map(row => { const e = exercises().find(e => e.id === row.ejercicio); return `<button class="entry" data-record="${escapeHTML(row.id)}"><div><strong>${escapeHTML(e ? name(e) : row.ejercicio)}${row.implemento ? ` · ${escapeHTML(row.implemento)}` : ''}</strong><small>${row.series.length} serie${row.series.length === 1 ? '' : 's'} · ${e?.grupo === 'cardio' ? `${row.series.reduce((sum,s) => sum + (s.min || 0),0)} min` : `máx ${Math.max(0,...row.series.map(s => s.kg || 0))} kg`}</small><small>${escapeHTML(formatSeries(row,e))}</small>${row.nota ? `<small>${escapeHTML(row.nota)}</small>` : ''}</div><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>`; }).join('')}</section>`).join('') : '<div class="panel empty">Todavía no hay entrenamientos este mes.<br>Tu próximo paso empieza con un registro.</div>'}`;
+  const marked = attendance.filter(d => d.fecha.startsWith(month));
+  const days = [...new Set([...rows.map(row => row.fecha),...marked.map(d => d.fecha)])].sort().reverse();
+  $('#app').innerHTML = `<p class="eyebrow">Tu entrenamiento, día a día</p><div class="row between month"><button data-month="-1" aria-label="Mes anterior">‹</button><h1>${escapeHTML(monthLabel(month))}</h1><button data-month="1" aria-label="Mes siguiente">›</button></div><a class="primary button wide" href="#registrar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</a>${summaryHTML(attendance)}<p class="muted">${rows.length} registro${rows.length === 1 ? '' : 's'} · ${days.length} día${days.length === 1 ? '' : 's'} de movimiento</p>${days.length ? days.map(day => `<section class="day"><div class="dayhead"><span class="date-badge"><strong>${Number(day.slice(-2))}</strong><span>${new Date(`${day}T12:00:00`).toLocaleDateString('es-AR',{weekday:'short'})}</span></span><h2><button data-day="${day}">${marked.find(d => d.fecha === day)?.fue === false ? "No fui" : "Tu entrenamiento"}</button></h2></div>${marked.find(d => d.fecha === day)?.comentario ? `<p>${escapeHTML(marked.find(d => d.fecha === day).comentario)}</p>` : ""}${rows.filter(row => row.fecha === day).map(row => { const e = exercises().find(e => e.id === row.ejercicio); return `<button class="entry" data-record="${escapeHTML(row.id)}"><div><strong>${escapeHTML(e ? name(e) : row.ejercicio)}${row.implemento ? ` · ${escapeHTML(row.implemento)}` : ''}</strong><small>${row.series.length} serie${row.series.length === 1 ? '' : 's'} · ${e?.grupo === 'cardio' ? `${row.series.reduce((sum,s) => sum + (s.min || 0),0)} min` : `máx ${Math.max(0,...row.series.map(s => s.kg || 0))} kg`}</small><small>${escapeHTML(formatSeries(row,e))}</small>${row.nota ? `<small>${escapeHTML(row.nota)}</small>` : ''}</div><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>`; }).join('')}</section>`).join('') : '<div class="panel empty">Todavía no hay entrenamientos este mes.<br>Tu próximo paso empieza con un registro.</div>'}`;
 }
 function renderPicker() {
   $('#app').innerHTML = `<p class="eyebrow">Sumá un entrenamiento</p><h1>¿Qué entrenás hoy?</h1><label class="search">Buscar en todos los grupos<input id="exercise-search" type="search" placeholder="Nombre del ejercicio" autocomplete="off"></label><div id="picker-results"></div>`;
@@ -104,10 +111,14 @@ function renderPickerResults() {
     if (carousel.clientWidth) update();
   }
 }
-function renderAbru() {
+function renderAbru(program = null) {
   const completed = (settings.nombres.__abru || '').split(',');
-  const steps = exercises().filter(e => e.grupo === 'abru'); const active = steps.find(e => !completed.includes(e.id));
-  $('#app').innerHTML = `<p class="eyebrow">De a un paso</p><h1>Ayuda a Abru</h1><div class="abru-progress"><p>${steps.slice(0,9).filter(e => completed.includes(e.id)).length} / 9 pasos superados</p><progress max="9" value="${steps.slice(0,9).filter(e => completed.includes(e.id)).length}" aria-label="Pasos superados"></progress></div><p class="muted">Practicá 2–3 veces por semana y descansá entre días. Pasá de nivel cuando cumplas el criterio del paso. La constancia vale más que apurarse.</p>${steps.map((e,i) => `<section class="panel step ${active?.id === e.id ? 'current' : ''} ${completed.includes(e.id) ? 'done' : ''}"><p class="eyebrow">Paso ${i+1}${active?.id === e.id ? ' · Estás acá' : ''}${completed.includes(e.id) ? ' · Superado ✓' : ''}</p><div class="row">${image(e)}<h2>${escapeHTML(name(e))}</h2></div><p>${escapeHTML(e.como || 'Registrá tus series y avanzá a tu ritmo.')}</p>${e.pasar ? `<p><strong>Pasás al siguiente cuando:</strong> ${escapeHTML(e.pasar)}</p>` : ''}<div class="actions"><button class="primary" data-exercise="${escapeHTML(e.id)}"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</button><button data-complete="${escapeHTML(e.id)}">${completed.includes(e.id) ? 'Desmarcar' : '¡Superado!'}</button></div></section>`).join('')}<button class="wide" data-add="abru"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Agregar ejercicio propio</button>`;
+  const all = exercises().filter(e => e.grupo === 'abru');
+  if (!program) {
+    $('#app').innerHTML = '<p class="eyebrow">De a un paso</p><h1>Ayuda a Abru</h1>'+[...new Set(all.map(e => e.programa || 'Dominadas'))].map(title => { const steps = all.filter(e => (e.programa || 'Dominadas') === title); return `<a class="panel program" href="#abru/${encodeURIComponent(title)}">${image(steps[0])}<div><h2>${escapeHTML(title)}</h2><p>${steps.filter(e => completed.includes(e.id)).length}/${steps.length} superados</p></div></a>`; }).join(''); return;
+  }
+  const steps = all.filter(e => (e.programa || 'Dominadas') === program); const active = steps.find(e => !completed.includes(e.id));
+  $('#app').innerHTML = `<p class="eyebrow">De a un paso</p><a class="button back" href="#abru">? Abru</a><h1>${escapeHTML(program)}</h1><div class="abru-progress"><p>${steps.filter(e => completed.includes(e.id)).length} / ${steps.length} pasos superados</p><progress max="${steps.length}" value="${steps.filter(e => completed.includes(e.id)).length}" aria-label="Pasos superados"></progress></div><p class="muted">Practicá 2–3 veces por semana y descansá entre días. Pasá de nivel cuando cumplas el criterio del paso. La constancia vale más que apurarse.</p>${steps.map((e,i) => `<section class="panel step ${active?.id === e.id ? 'current' : ''} ${completed.includes(e.id) ? 'done' : ''}"><p class="eyebrow">Paso ${i+1}${active?.id === e.id ? ' · Estás acá' : ''}${completed.includes(e.id) ? ' · Superado ✓' : ''}</p><div class="row">${image(e)}<h2>${escapeHTML(name(e))}</h2></div><p>${escapeHTML(e.como || 'Registrá tus series y avanzá a tu ritmo.')}</p>${e.pasar ? `<p><strong>Pasás al siguiente cuando:</strong> ${escapeHTML(e.pasar)}</p>` : ''}<div class="actions"><button class="primary" data-exercise="${escapeHTML(e.id)}"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</button><button data-complete="${escapeHTML(e.id)}">${completed.includes(e.id) ? 'Desmarcar' : '¡Superado!'}</button></div></section>`).join('')}<button class="wide" data-add="abru"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Agregar ejercicio propio</button>`;
 }
 function muscleMap(e) {
   const front = [
@@ -154,20 +165,20 @@ function progress(e,rows) {
   const points = stats.map((s,i) => `${20+i*280/Math.max(1,stats.length-1)},${115-s.max/max*90}`);
   return `${e.grupo !== 'cardio' ? `<svg class="chart" viewBox="0 0 320 150" role="img" aria-label="Peso máximo por mes, de ${escapeHTML(monthLabel(months[0]))} a ${escapeHTML(monthLabel(months.at(-1)))}"><path d="M20 15V120H305" fill="none" stroke="#1d2c4a"/><polyline points="${points.join(' ')}" fill="none" stroke="#60a5fa" stroke-width="3"/>${stats.map((s,i) => `<circle cx="${points[i].split(',')[0]}" cy="${points[i].split(',')[1]}" r="4" fill="#60a5fa"><title>${s.month}: ${s.max} kg</title></circle>`).join('')}<g fill="#a8b6ce" font-size="10"><text x="20" y="140">${months[0]}</text><text x="255" y="140">${months.at(-1)}</text><text x="24" y="14">${max === 1 && !stats.some(s => s.max) ? 0 : max} kg</text></g></svg>` : ''}${stats.reverse().map(s => `<div class="progress-row"><strong>${escapeHTML(monthLabel(s.month))}</strong><p>${e.grupo === 'cardio' ? `${s.minutes} minutos totales` : `Máximo: ${s.max} kg · Mejor serie: ${s.best?.kg || 0} kg × ${s.best?.reps || 0} ${e.unidad || 'reps'}<br>Volumen: ${s.volume.toLocaleString('es-AR')} kg × reps`}</p></div>`).join('')}`;
 }
-function seriesHTML(s = {}) {
-  const cardio = current.grupo === 'cardio';
-  if (current.grupo === 'abru' && s.kg === undefined) s = {...s,kg:0};
-  return `<div class="series"><span></span><label>${cardio ? 'Minutos' : 'Kg'}<input aria-label="${cardio ? 'Minutos' : 'Kilos'}" data-field="${cardio ? 'min' : 'kg'}" type="text" inputmode="decimal" value="${escapeHTML(cardio ? s.min ?? '' : s.kg ?? '')}" required></label><label>${cardio ? 'Km (opcional)' : current.unidad || 'Reps'}<input aria-label="${cardio ? 'Kilómetros, opcional' : current.unidad || 'Repeticiones'}" data-field="${cardio ? 'km' : 'reps'}" type="text" inputmode="decimal" value="${escapeHTML(cardio ? s.km ?? '' : s.reps ?? '')}" ${cardio ? '' : 'required'}></label><button type="button" data-remove aria-label="Quitar serie">×</button></div>`;
+function seriesHTML(s = {}, e = current, required = true) {
+  const cardio = e.grupo === 'cardio';
+  if (e.grupo === 'abru' && s.kg === undefined) s = {...s,kg:0};
+  return `<div class="series"><span></span><label>${cardio ? 'Minutos' : 'Kg'}<input aria-label="${cardio ? 'Minutos' : 'Kilos'}" data-field="${cardio ? 'min' : 'kg'}" type="text" inputmode="decimal" value="${escapeHTML(cardio ? s.min ?? '' : s.kg ?? '')}" ${required ? 'required' : ''}></label><label>${cardio ? 'Km (opcional)' : e.unidad || 'Reps'}<input aria-label="${cardio ? 'Kilómetros, opcional' : e.unidad || 'Repeticiones'}" data-field="${cardio ? 'km' : 'reps'}" type="text" inputmode="decimal" value="${escapeHTML(cardio ? s.km ?? '' : s.reps ?? '')}" ${!cardio && required ? 'required' : ''}></label><button type="button" data-remove aria-label="Quitar serie">×</button></div>`;
 }
 function numberSeries() { document.querySelectorAll('.series').forEach((row,i) => { row.firstElementChild.textContent = i+1; row.querySelector('[data-remove]').disabled = document.querySelectorAll('.series').length === 1; }); }
 function renderExercise() {
   const e = current; const last = exerciseRows.find(r => r.id !== editing?.id);
-  $('#app').innerHTML = `<a class="button back" href="${e.grupo === 'abru' ? '#abru' : '#registrar'}">‹ Ejercicios</a><p class="chip group-${escapeHTML(e.grupo)}">${escapeHTML(groups[e.grupo])}</p><div class="row between"><h1>${escapeHTML(name(e))}</h1><button id="rename" aria-label="Renombrar ejercicio">✎</button></div>${settings.nombres[e.id] ? '<button id="reset-name">Volver al nombre original</button>' : ''}<button class="hero" id="toggle-image" aria-label="Alternar posición inicial y final">${image(e)}</button>${e.img2 ? '<small>Tocá la imagen para ver la otra posición.</small>' : ''}${e.como ? `<p>${escapeHTML(e.como)}</p>` : ''}${muscleMap(e)}<form id="record-form"><h2>${editing ? 'Editar registro' : 'Tu entrenamiento'}</h2>${last ? `<p class="panel">La última vez · ${escapeHTML(last.fecha)}<br><strong>${escapeHTML(formatSeries(last,e))}</strong>${last.implemento ? ` · ${escapeHTML(last.implemento)}` : ''}</p>` : '<p class="muted">Primer registro. Este es tu punto de partida.</p>'}<label>Fecha<input name="fecha" type="date" required value="${editing?.fecha || today()}"></label>${e.grupo !== 'cardio' ? `<fieldset class="equipment"><legend>Implemento <span class="muted">· opcional</span></legend><label><input type="radio" name="implemento" value="" ${!(editing ? editing.implemento : last?.implemento) ? 'checked' : ''}><span>Sin especificar</span></label>${implementsList.map(value => `<label><input type="radio" name="implemento" value="${value}" ${(editing ? editing.implemento : last?.implemento) === value ? 'checked' : ''}><span>${value}</span></label>`).join('')}</fieldset>` : ''}<div id="series">${(editing?.series.length ? editing.series : [{}]).map(seriesHTML).join('')}</div><div class="actions"><button type="button" id="add-series"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Serie</button><button type="button" id="copy-series">Copiar la última</button></div><label>Nota<textarea name="nota" rows="3" placeholder="¿Cómo te sentiste?">${escapeHTML(editing?.nota || '')}</textarea></label><button class="primary wide" type="submit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg> Guardar entrenamiento</button>${editing ? '<button type="button" class="danger wide" id="delete-record" style="margin-top:12px">Borrar registro</button>' : ''}</form><section class="panel"><h2>Tu progreso</h2>${progress(e,exerciseRows)}</section><h2>Historial</h2>${exerciseRows.map(r => `<button class="entry" data-record="${escapeHTML(r.id)}"><div><strong>${escapeHTML(r.fecha)}</strong><small>${escapeHTML(name(e))}${r.implemento ? ` · ${escapeHTML(r.implemento)}` : ''}</small><small>${escapeHTML(formatSeries(r,e))}</small></div><span>✎</span></button>`).join('') || '<p class="muted">Todavía no hay registros.</p>'}`;
+  $('#app').innerHTML = `<a class="button back" href="${e.grupo === 'abru' ? '#abru' : '#registrar'}">‹ Ejercicios</a><p class="chip group-${escapeHTML(e.grupo)}">${escapeHTML(groups[e.grupo])}</p><div class="row between"><h1>${escapeHTML(name(e))}</h1><button id="rename" aria-label="Renombrar ejercicio">✎</button></div>${settings.nombres[e.id] ? '<button id="reset-name">Volver al nombre original</button>' : ''}<button class="hero" id="toggle-image" aria-label="Alternar posición inicial y final">${image(e)}</button>${e.img2 ? '<small>Tocá la imagen para ver la otra posición.</small>' : ''}${e.como ? `<p>${escapeHTML(e.como)}</p>` : ''}${muscleMap(e)}<form id="record-form"><h2>${editing ? 'Editar registro' : 'Tu entrenamiento'}</h2>${last ? `<p class="panel">La última vez · ${escapeHTML(last.fecha)}<br><strong>${escapeHTML(formatSeries(last,e))}</strong>${last.implemento ? ` · ${escapeHTML(last.implemento)}` : ''}</p>` : '<p class="muted">Primer registro. Este es tu punto de partida.</p>'}<label>Fecha<input name="fecha" type="date" required value="${editing?.fecha || today()}"></label>${e.grupo !== 'cardio' ? `<fieldset class="equipment"><legend>Implemento <span class="muted">· opcional</span></legend><label><input type="radio" name="implemento" value="" ${!(editing ? editing.implemento : last?.implemento) ? 'checked' : ''}><span>Sin especificar</span></label>${implementsList.map(value => `<label><input type="radio" name="implemento" value="${value}" ${(editing ? editing.implemento : last?.implemento) === value ? 'checked' : ''}><span>${value}</span></label>`).join('')}</fieldset>` : ''}<div id="series">${(editing?.series.length ? editing.series : [{}]).map(s => seriesHTML(s)).join('')}</div><div class="actions"><button type="button" id="add-series"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Serie</button><button type="button" id="copy-series">Copiar la última</button></div><label>Nota<textarea name="nota" rows="3" placeholder="¿Cómo te sentiste?">${escapeHTML(editing?.nota || '')}</textarea></label><button class="primary wide" type="submit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg> Guardar entrenamiento</button>${editing ? '<button type="button" class="danger wide" id="delete-record" style="margin-top:12px">Borrar registro</button>' : ''}</form><section class="panel"><h2>Tu progreso</h2>${progress(e,exerciseRows)}</section><h2>Historial</h2>${exerciseRows.map(r => `<button class="entry" data-record="${escapeHTML(r.id)}"><div><strong>${escapeHTML(r.fecha)}</strong><small>${escapeHTML(name(e))}${r.implemento ? ` · ${escapeHTML(r.implemento)}` : ''}</small><small>${escapeHTML(formatSeries(r,e))}</small></div><span>✎</span></button>`).join('') || '<p class="muted">Todavía no hay registros.</p>'}`;
   const draft = drafts.get(`${user.id}:${location.hash}`);
   if (draft) {
     $('#record-form').elements.fecha.value = draft.fecha;
     $('#record-form').elements.nota.value = draft.nota;
-    $('#series').innerHTML = draft.series.map(seriesHTML).join('');
+    $('#series').innerHTML = draft.series.map(s => seriesHTML(s)).join('');
     document.querySelectorAll('input[name=implemento]').forEach(input => input.checked = input.value === (draft.implemento || ''));
   }
   numberSeries(); $('#record-form').onsubmit = saveRecord;
@@ -196,18 +207,143 @@ async function saveRecord(event) {
     if (version === routeVersion) { month = payload.fecha.slice(0,7); location.hash = '#mes'; }
   } catch (error) { if (version === routeVersion) fail(error); } finally { busy = false; form.querySelector('[type=submit]').disabled = false; }
 }
+let selectionTarget = null;
+const dayDrafts = new Map();
+let dayDraft;
+function dateShift(value, offset) { const d = new Date(`${value}T12:00:00`); d.setDate(d.getDate()+offset); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function attendanceStats(rows) {
+  const marked = rows.filter(d => d.fecha.startsWith(month));
+  const attended = new Set(rows.filter(d => d.fue).map(d => d.fecha));
+  let cursor = today(), streak = 0;
+  if (!attended.has(cursor)) cursor = dateShift(cursor,-1);
+  while (attended.has(cursor)) { streak++; cursor = dateShift(cursor,-1); }
+  const counts = new Map();
+  marked.filter(d => d.fue && d.rutina).forEach(d => counts.set(d.rutina,(counts.get(d.rutina)||0)+1));
+  const favorite = [...counts].sort((a,b) => b[1]-a[1])[0]?.[0];
+  return {yes:marked.filter(d => d.fue).length,no:marked.filter(d => !d.fue).length,streak,favorite:settings.rutinas.find(r => r.id === favorite)?.nombre || '—'};
+}
+function summaryHTML(rows) {
+  const stats = attendanceStats(rows), [y,m] = month.split('-').map(Number);
+  const offset = (new Date(y,m-1,1).getDay()+6)%7;
+  return `<div class="stats">${[['Fui',stats.yes],['No fui',stats.no],['Racha actual',`${stats.streak} ${stats.streak===1?"día":"días"}`],['Rutina más hecha',stats.favorite]].map(([label,value]) => `<div class="panel"><small>${label}</small><strong>${escapeHTML(value)}</strong></div>`).join('')}</div><div class="calendar" aria-label="Calendario mensual">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => `<small>${d}</small>`).join('')}${'<span></span>'.repeat(offset)}${Array.from({length:new Date(y,m,0).getDate()},(_,i) => { const date = `${month}-${String(i+1).padStart(2,'0')}`, day = rows.find(d => d.fecha === date), index = settings.rutinas.findIndex(r => r.id === day?.rutina); return `<button data-day="${date}" class="${date === today() ? 'today' : ''} ${day ? day.fue ? 'attended' : 'absent' : ''}" aria-label="${date}: ${day ? day.fue ? 'Fui' : 'No fui' : 'Sin marcar'}"><span>${i+1}</span><small>${day ? day.fue ? '✓' : '×' : ''}${day?.fue && index >= 0 ? ` D${index+1}` : ''}</small></button>`; }).join('')}</div><a class="button wide" href="#rutinas">Mis rutinas</a>`;
+}
+function renderRoutines() {
+  $('#app').innerHTML = `<p class="eyebrow">Tu plan de entrenamiento</p><h1>Mis rutinas</h1>${settings.rutinas.length ? settings.rutinas.map(r => `<section class="panel"><div class="row between"><h2>${escapeHTML(r.nombre)}</h2><button data-routine-rename="${escapeHTML(r.id)}" aria-label="Renombrar rutina">✎</button></div>${r.ejercicios.map((id,i) => { const e = exercises().find(e => e.id === id); return `<div class="routine-item"><strong>${escapeHTML(e ? name(e) : id)}</strong><div class="row"><button data-routine-move="${escapeHTML(r.id)}" data-index="${i}" data-direction="-1" aria-label="Subir ejercicio" ${i === 0 ? 'disabled' : ''}>↑</button><button data-routine-move="${r.id}" data-index="${i}" data-direction="1" aria-label="Bajar ejercicio" ${i === r.ejercicios.length-1 ? 'disabled' : ''}>↓</button><button data-routine-remove="${escapeHTML(r.id)}" data-index="${i}" aria-label="Quitar ejercicio">×</button></div></div>`; }).join('')}<div class="actions"><button data-routine-add="${escapeHTML(r.id)}">Agregar ejercicio</button><button class="danger" data-routine-delete="${escapeHTML(r.id)}">Borrar rutina</button></div></section>`).join('') : '<p class="muted">Armá tu primer día de entrenamiento.</p>'}<button class="primary wide" id="create-routine">Crear Día ${settings.rutinas.length+1}</button>`;
+}
+function rememberDay() {
+  const form = $('#day-form');
+  if (!form?.elements || !dayDraft || dayDraft.owner !== renderedUser) return;
+  dayDraft.comentario = form.elements.comentario.value;
+  form.querySelectorAll('[data-day-exercise]').forEach(card => {
+    const entry = dayDraft.entries.find(e => e.ejercicio === card.dataset.dayExercise);
+    entry.implemento = card.querySelector('select').value;
+    entry.nota = card.querySelector('textarea').value;
+    entry.series = [...card.querySelectorAll('.series')].map(row => Object.fromEntries([...row.querySelectorAll('input')].map(input => [input.dataset.field,input.value])));
+  });
+}
+async function openDay(date,version) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || dateShift(date,0) !== date) throw new Error('Elegí una fecha válida.');
+  const owner = user.id, key = `${owner}:${date}`;
+  if (dayDrafts.has(key)) { dayDraft = dayDrafts.get(key); renderDay(); return; }
+  const [daysResult,historyResult] = await Promise.all([db.from('dias').select('*').eq('user_id',owner).eq('fecha',date).maybeSingle(),db.from('registros').select('*').eq('user_id',owner).lte('fecha',date).order('fecha',{ascending:false}).order('creado',{ascending:false})]);
+  const day = check(daysResult), history = check(historyResult);
+  if (version !== routeVersion) return;
+  dayDraft = {owner,fecha:date,fue:day?.fue ?? null,rutina:day?.rutina || '',comentario:day?.comentario || '',entries:history.filter(r => r.fecha === date).filter((r,i,all) => all.findIndex(x => x.ejercicio === r.ejercicio) === i).map(r => ({...r,series:r.series.map(s => ({...s}))}))};
+  dayDraft.history = history;
+  dayDrafts.set(key,dayDraft); addRoutineEntries(); renderDay();
+}
+function addDayEntry(id) {
+  if (dayDraft.entries.some(e => e.ejercicio === id)) return;
+  const last = (dayDraft.history || []).find(r => r.ejercicio === id && r.fecha <= dayDraft.fecha);
+  dayDraft.entries.push({ejercicio:id,implemento:last?.implemento || '',nota:'',series:last?.series.map(s => ({...s})) || [{}]});
+}
+function addRoutineEntries() { settings.rutinas.find(r => r.id === dayDraft.rutina)?.ejercicios.forEach(addDayEntry); }
+function renderDay() {
+  const d = dayDraft;
+  $('#app').innerHTML = `<a class="button back" href="#resumen">‹ Resumen</a><h1 class="day-title">${escapeHTML(new Date(d.fecha+"T12:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}))}</h1><form id="day-form"><div class="actions"><button type="button" data-attendance="true" aria-pressed="${d.fue === true}" class="${d.fue === true ? 'primary' : ''}">Fui</button><button type="button" data-attendance="false" aria-pressed="${d.fue === false}" class="${d.fue === false ? 'primary' : ''}">No fui</button><button type="button" id="clear-attendance">Borrar marca</button></div><label>Qué día de rutina hice<select id="day-routine"><option value="">Libre</option>${settings.rutinas.map(r => `<option value="${escapeHTML(r.id)}" ${d.rutina === r.id ? 'selected' : ''}>${escapeHTML(r.nombre)}</option>`).join('')}</select></label><label>Comentario del día<textarea name="comentario">${escapeHTML(d.comentario)}</textarea></label><h2>Entrenamiento</h2>${d.entries.map(entry => { const e = exercises().find(e => e.id === entry.ejercicio); if (!e) return ''; return `<section class="panel compact" data-day-exercise="${escapeHTML(e.id)}"><div class="row">${image(e)}<h3>${escapeHTML(name(e))}</h3></div><label>Implemento<select><option value="">Sin especificar</option>${implementsList.map(value => `<option ${entry.implemento === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><div class="day-series">${entry.series.map(s => seriesHTML(s,e,false)).join('')}</div><button type="button" data-day-series="${escapeHTML(e.id)}">+ serie</button><label>Nota<textarea>${escapeHTML(entry.nota)}</textarea></label></section>`; }).join('')}<button type="button" id="day-add-exercise" class="wide">Agregar otro ejercicio</button><button class="primary wide" type="submit">Guardar día</button></form>`;
+  $('#day-routine').onchange = event => { rememberDay(); d.rutina = event.target.value; addRoutineEntries(); renderDay(); };
+  $('#day-form').onsubmit = saveDay;
+}
+function parseDaySeries(series) {
+  return series.filter(s => Object.entries(s).some(([field,v]) => field !== 'kg' && String(v ?? '').trim()) || String(s.kg ?? '').trim() && Number(s.kg) !== 0).map(s => {
+    const parsed = {};
+    for (const [field,value] of Object.entries(s)) {
+      const raw = String(value ?? '').trim().replace(',','.');
+      if (!raw && field === 'km') continue;
+      const n = Number(raw);
+      if (!raw || !Number.isFinite(n) || n < 0 || (['reps','min'].includes(field) && n <= 0)) throw new Error('Completá las series con números válidos y positivos (kg puede ser 0).');
+      parsed[field] = n;
+    }
+    return parsed;
+  });
+}
+async function persistDay(d) {
+  const payloads = d.entries.map(entry => {
+    const e = exercises().find(e => e.id === entry.ejercicio);
+    const series = parseDaySeries(entry.series);
+    if (entry.implemento && !implementsList.includes(entry.implemento)) throw new Error('Elegí un implemento válido.');
+    return {...entry,user_id:d.owner,fecha:d.fecha,series,implemento:e?.grupo === 'cardio' ? null : entry.implemento || null};
+  }).filter(entry => entry.series.length);
+  for (const entry of payloads) {
+    // Releer por fecha permite reintentar después de un guardado parcial sin duplicar registros.
+    const existing = check(await db.from('registros').select('id').eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',entry.ejercicio));
+    const payload = {user_id:d.owner,fecha:d.fecha,ejercicio:entry.ejercicio,implemento:entry.implemento,series:entry.series,nota:entry.nota.trim()};
+    check(await (existing.length ? db.from('registros').update(payload).eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',entry.ejercicio) : db.from('registros').insert(payload)));
+  }
+  if (d.fue === null) check(await db.from('dias').delete().eq('user_id',d.owner).eq('fecha',d.fecha));
+  else check(await db.from('dias').upsert({user_id:d.owner,fecha:d.fecha,fue:d.fue,rutina:d.rutina || null,comentario:d.comentario.trim()},{onConflict:'user_id,fecha'}));
+}
+async function saveDay(event) {
+  event.preventDefault(); if (busy) return;
+  rememberDay(); const d = dayDraft, version = routeVersion, button = event.target.querySelector('[type=submit]');
+  busy = true; button.disabled = true; message();
+  try { await persistDay(d); dayDrafts.delete(`${d.owner}:${d.fecha}`); if (version === routeVersion) { month = d.fecha.slice(0,7); location.hash = '#resumen'; } }
+  catch (error) { if (version === routeVersion) fail(error); }
+  finally { busy = false; button.disabled = false; }
+}
+async function selectExercise(id) {
+  const target = selectionTarget;
+  if (target.type === 'day') { addDayEntry(id); selectionTarget = null; location.hash = `#dia/${dayDraft.fecha}`; }
+  else {
+    const rutinas = settings.rutinas.map(r => r.id === target.id ? {...r,ejercicios:[...new Set([...r.ejercicios,id])]} : r);
+    busy = true; await saveSettings({...settings,rutinas}); selectionTarget = null; location.hash = '#rutinas';
+  }
+}
+async function handleRoutineDayClick(button) {
+  const data = button.dataset;
+  if (data.day) { location.hash = `#dia/${data.day}`; return true; }
+  if (data.attendance) { rememberDay(); dayDraft.fue = data.attendance === 'true'; renderDay(); return true; }
+  if (button.id === 'clear-attendance') { rememberDay(); dayDraft.fue = null; renderDay(); return true; }
+  if (data.daySeries) { rememberDay(); dayDraft.entries.find(e => e.ejercicio === data.daySeries).series.push({}); renderDay(); return true; }
+  if (button.id === 'day-add-exercise' || data.routineAdd) { rememberDay(); selectionTarget = data.routineAdd ? {type:'routine',id:data.routineAdd} : {type:'day'}; location.hash = '#registrar'; return true; }
+  if (button.id === 'cancel-selection') { const target = selectionTarget; selectionTarget = null; location.hash = target.type === 'day' ? `#dia/${dayDraft.fecha}` : '#rutinas'; return true; }
+  if (button.id === 'create-routine' || data.routineRename || data.routineDelete || data.routineRemove || data.routineMove) {
+    let rutinas = settings.rutinas.map(r => ({...r,ejercicios:[...r.ejercicios]}));
+    const r = rutinas.find(r => r.id === (data.routineRename || data.routineDelete || data.routineRemove || data.routineMove));
+    if (button.id === 'create-routine') rutinas.push({id:crypto.randomUUID().slice(0,8),nombre:`Día ${rutinas.length+1}`,ejercicios:[]});
+    if (data.routineRename) { const value = prompt('Nombre de la rutina',r.nombre); if (!value?.trim()) return true; r.nombre = value.trim(); }
+    if (data.routineDelete) { if (!confirm('¿Borrar esta rutina? Los entrenamientos guardados se conservan.')) return true; rutinas = rutinas.filter(item => item.id !== r.id); }
+    if (data.routineRemove) r.ejercicios.splice(Number(data.index),1);
+    if (data.routineMove) { const i = Number(data.index), j = i+Number(data.direction); if (j >= 0 && j < r.ejercicios.length) [r.ejercicios[i],r.ejercicios[j]] = [r.ejercicios[j],r.ejercicios[i]]; }
+    const version = routeVersion; busy = true; await saveSettings({...settings,rutinas}); if (version === routeVersion) renderRoutines(); return true;
+  }
+  return false;
+}
+
 document.addEventListener('click', async event => {
   const button = event.target.closest('button'); if (!button || busy) return;
   const version = routeVersion;
   try {
+    if (await handleRoutineDayClick(button)) return;
     if (button.dataset.month) { const [y,m] = month.split('-').map(Number); const d = new Date(y,m-1+Number(button.dataset.month),1); month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; await route(); }
     else if (button.dataset.group) { pickerGroup = group = button.dataset.group; renderPickerResults(); }
     else if (button.id === 'all-groups') { pickerGroup = null; renderPickerResults(); }
     else if (button.dataset.slide) { const carousel = $('#exercise-carousel'); carousel.scrollBy({left:Number(button.dataset.slide)*carousel.clientWidth,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'}); }
+    else if (button.dataset.exercise && selectionTarget) { await selectExercise(button.dataset.exercise); }
     else if (button.dataset.exercise) location.hash = `#ejercicio/${encodeURIComponent(button.dataset.exercise)}`;
     else if (button.dataset.record) { const r = [...monthRows,...exerciseRows].find(r => r.id === button.dataset.record); if (r) { const hash = `#ejercicio/${encodeURIComponent(r.ejercicio)}/${r.id}`; if (location.hash === hash) await route(); else location.hash = hash; } }
     else if (button.id === 'add-series' || button.id === 'copy-series') { const last = [...document.querySelectorAll('.series')].at(-1); const s = {}; if (button.id === 'copy-series') last.querySelectorAll('input').forEach(i => s[i.dataset.field] = i.value); $('#series').insertAdjacentHTML('beforeend',seriesHTML(s)); numberSeries(); }
-    else if (button.hasAttribute('data-remove')) { button.closest('.series').remove(); numberSeries(); }
+    else if (button.hasAttribute('data-remove')) { button.closest('.series').remove(); if ($('#day-form')) rememberDay(); else numberSeries(); }
     else if (button.id === 'toggle-image' && current.img2) { const img = button.querySelector('img'); img.setAttribute('src',img.getAttribute('src') === current.img ? current.img2 : current.img); }
     else if (button.id === 'rename' || button.id === 'reset-name') {
       const value = button.id === 'rename' ? prompt('Nombre del ejercicio',name(current)) : '';
@@ -226,12 +362,12 @@ document.addEventListener('click', async event => {
     } else if (button.dataset.complete) {
       const id = button.dataset.complete; const completed = new Set((settings.nombres.__abru || '').split(',').filter(Boolean));
       completed.has(id) ? completed.delete(id) : completed.add(id);
-      busy = true; await saveSettings({...settings,nombres:{...settings.nombres,__abru:[...completed].join(',')}}); if (version === routeVersion) renderAbru();
+      busy = true; await saveSettings({...settings,nombres:{...settings.nombres,__abru:[...completed].join(',')}}); if (version === routeVersion) renderAbru(location.hash.split('/')[1] ? decodeURIComponent(location.hash.split('/')[1]) : null);
     } else if (button.id === 'delete-record') {
       if (!confirm('¿Borrar este registro? No se puede recuperar.')) return;
       busy = true; check(await db.from('registros').delete().eq('id',editing.id)); if (version === routeVersion) { drafts.delete(`${renderedUser}:${renderedHash}`); renderedHash = undefined; location.hash = '#mes'; }
     } else if (button.id === 'logout') {
-      busy = true; check(await db.auth.signOut()); drafts.clear(); user = null; settings = {nombres:{},propios:[]}; monthRows = exerciseRows = []; current = editing = null; login();
+      busy = true; check(await db.auth.signOut()); drafts.clear(); dayDrafts.clear(); selectionTarget = null; dayDraft = null; user = null; settings = {nombres:{},propios:[],rutinas:[]}; monthRows = exerciseRows = []; current = editing = null; login();
     }
   } catch (error) { fail(error); } finally { busy = false; }
 });
@@ -247,7 +383,7 @@ async function start() {
     db = window.supabase.createClient(config.supabaseUrl,config.supabaseKey);
     user = check(await db.auth.getSession()).session?.user;
     if (user) { await loadSettings(); await route(); } else login();
-    db.auth.onAuthStateChange((event,session) => { if (event === 'SIGNED_OUT') { rememberDraft(); renderedHash = undefined; ++routeVersion; user = null; settings = {nombres:{},propios:[]}; monthRows = exerciseRows = []; login(); } else if (session) user = session.user; });
+    db.auth.onAuthStateChange((event,session) => { if (event === 'SIGNED_OUT') { rememberDraft(); renderedHash = undefined; ++routeVersion; user = null; settings = {nombres:{},propios:[],rutinas:[]}; monthRows = exerciseRows = []; login(); } else if (session) user = session.user; });
   } catch (error) { fail(error); $('#app').innerHTML = '<h1>No pudimos iniciar Gym</h1><p>Revisá la conexión y recargá la página para volver a intentar.</p><button onclick="location.reload()">Reintentar</button>'; }
 }
 start();
