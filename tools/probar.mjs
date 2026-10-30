@@ -140,7 +140,8 @@ console.log('OK - presentacion, mapa, chips, iconos y progreso Abru.');
 run("settings.propios=[{id:'propio-test',nombre:'Extensión única',grupo:'piernas'}]; pickerGroup=null; renderPicker()");
 assert.equal((element('#picker-results').innerHTML.match(/data-group=/g)||[]).length,7);
 run("pickerGroup='piernas'; renderPickerResults()");
-assert.equal((element('#picker-results').innerHTML.match(/data-exercise=/g)||[]).length,catalog.filter(e=>e.grupo==='piernas').length+1);
+assert.equal((element('#picker-results').innerHTML.match(/data-exercise=/g)||[]).length,(catalog.filter(e=>e.grupo==='piernas').length+1)*2);
+assert.ok(run("exercises().some(e=>e.id==='Barbell_Squat~uni' && name(e)==='Sentadilla con barra (unilateral)')")); assert.ok(!run("exercises().some(e=>e.grupo==='cardio' && e.base)"));
 assert.ok(element('#picker-results').innerHTML.includes('propio-test'));
 element('#exercise-search').value='EXTENSION UNICA'; run('renderPickerResults()');
 assert.ok(element('#picker-results').innerHTML.includes('propio-test'));
@@ -235,7 +236,7 @@ const monthly=run("progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:1
 assert.ok(monthly.includes('30 min')); assert.ok(!monthly.includes('45 min')); assert.ok(monthly.includes('2 km'));
 assert.equal(run("seriesHTML({seg:90},{grupo:'abdomen'})").includes('value="1:30"'),true);
 assert.ok(!run("seriesHTML({},{grupo:'abru'})").includes('required'));
-assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v6'"));
+assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v7'"));
 console.log('OK · series opcionales, tiempo, métricas independientes y mejor día del mes.');
 
 assert.equal(run("parseDaySeries([{seg:formatTime(60.5)}])[0].seg"),60.5);
