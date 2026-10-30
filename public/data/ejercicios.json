@@ -1044,6 +1044,39 @@
   "secundarios": []
  },
  {
+  "id": "Muscle_Up",
+  "nombre": "Muscle up",
+  "grupo": "espalda",
+  "img": "img/Muscle_Up/0.jpg",
+  "img2": "img/Muscle_Up/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "abdominals",
+   "biceps",
+   "forearms",
+   "middle back",
+   "shoulders",
+   "traps",
+   "triceps"
+  ]
+ },
+ {
+  "id": "front-lever",
+  "nombre": "Front lever",
+  "grupo": "espalda",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "abdominals",
+   "middle back",
+   "shoulders"
+  ],
+  "como": "Colgado de la barra con brazos rectos, llevá el cuerpo a la horizontal mirando al techo y aguantá. Progresá con rodillas al pecho (tuck), una pierna o abierto."
+ },
+ {
   "id": "Standing_Military_Press",
   "nombre": "Press militar",
   "grupo": "hombros",
@@ -1956,6 +1989,19 @@
    "abdominals"
   ],
   "secundarios": []
+ },
+ {
+  "id": "dragon-flag",
+  "nombre": "Dragon flag",
+  "grupo": "abdomen",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": [
+   "lower back",
+   "lats"
+  ],
+  "como": "Acostado en un banco, agarrate detrás de la cabeza, subí el cuerpo recto apoyando solo los hombros y bajá lento sin arquear la espalda."
  },
  {
   "id": "abru-colgada",

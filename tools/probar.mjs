@@ -7,6 +7,7 @@ const root = new URL('../public/',import.meta.url);
 const read = path => readFileSync(new URL(path,root),'utf8');
 const exists = path => assert.ok(existsSync(new URL(path,root)),`Falta ${path}`);
 const catalog = JSON.parse(read('data/ejercicios.json'));
+assert.equal(catalog.length,162);
 assert.equal(new Set(catalog.map(e=>e.id)).size,catalog.length,'IDs duplicados');
 for (const e of catalog) { assert.ok(e.id && e.nombre && e.grupo); for (const field of ['img','img2']) if (e[field]) exists(e[field]); }
 assert.equal(catalog.filter(e=>e.grupo==='abru').length,9);
@@ -29,8 +30,8 @@ assert.equal(run(`escapeHTML('<img onerror="x">')`),'&lt;img onerror=&quot;x&quo
 assert.equal(run(`formatSeries({series:[{kg:40,reps:10}]},{grupo:'piernas'})`),'40 kg × 10 reps');
 assert.equal(run(`formatSeries({series:[{kg:0,reps:30}]},{grupo:'abru',unidad:'seg'})`),'0 kg × 30 seg');
 assert.equal(run(`formatSeries({series:[{min:20,km:3}]},{grupo:'cardio'})`),'20 min · 3 km');
-assert.ok(run(`progress({grupo:'piernas'},[{fecha:'2026-10-01',series:[{kg:40,reps:10},{kg:50,reps:5}]}])`).includes('650 kg × reps'));
-assert.ok(run(`progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:20},{min:10}]}])`).includes('30 minutos totales'));
+assert.ok(run(`progress({grupo:'piernas'},[{fecha:'2026-10-01',series:[{kg:40,reps:10},{kg:50,reps:5}]}])`).includes('50 kg'));
+assert.ok(run(`progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:20},{min:10}]}])`).includes('30 min'));
 await run('start()'); assert.ok(element('#app').innerHTML.includes('Falta conectar Supabase'));
 run(`catalog = ${JSON.stringify(catalog)}; renderAbru('Dominadas')`);
 assert.equal((element('#app').innerHTML.match(/data-complete=/g)||[]).length,9);
@@ -62,7 +63,8 @@ await run('saveRecord({preventDefault(){},target:testForm})');
 assert.equal(written,undefined); assert.ok(element('#message').textContent.includes('números válidos'));
 inputs[0].value='';
 await run('saveRecord({preventDefault(){},target:testForm})');
-assert.equal(written,undefined);
+assert.equal(written.series[0].kg,undefined); assert.equal(written.series[0].reps,10);
+inputs[1].value=''; await run('saveRecord({preventDefault(){},target:testForm})'); assert.equal(written.series.length,0); inputs[1].value='10';
 run(`user={id:'usuario'}; db={from:()=>({upsert:async()=>({error:new Error('sin conexión')})})}`);
 await assert.rejects(run(`saveSettings({nombres:{otro:'Nuevo'},propios:[]})`));
 assert.equal(run('settings.nombres.otro'),undefined);
@@ -107,7 +109,7 @@ assert.equal(run("drafts.get('usuario:#ejercicio/test').series[0].kg"),'40');
 assert.equal(run("drafts.get('otro:#ejercicio/test')"),undefined);
 assert.ok(/const CACHE = 'gym-v\d+'/.test(worker));
 assert.ok(worker.includes("cache:'no-cache'"));
-console.log('OK · scroll, singular, XSS, carreras de navegación, borradores por cuenta y caché v3.');
+console.log('OK · scroll, singular, XSS, carreras de navegación, borradores por cuenta y caché v6.');
 
 run("fail({status:401,message:'Sesion vencida'})");
 assert.equal(run('user'),null);
@@ -129,7 +131,7 @@ assert.ok(element('#picker-results').innerHTML.includes('chip group-piernas'));
 const map = run("muscleMap({musculos:['chest'],secundarios:['biceps']})");
 assert.ok(map.includes('primary-muscle')); assert.ok(map.includes('region secondary'));
 assert.ok(map.includes('primary-swatch')); assert.ok(map.includes('#c9d1cc'));
-assert.equal((read('index.html').match(/class="icon"/g)||[]).length,5);
+assert.equal((read('index.html').match(/class="icon"/g)||[]).length,6);
 assert.ok(read('styles.css').includes('.primary-muscle{fill:#ff6a3d'));
 assert.ok(read('styles.css').includes('.secondary{fill:#38bdf8'));
 console.log('OK - presentacion, mapa, chips, iconos y progreso Abru.');
@@ -144,7 +146,8 @@ element('#exercise-search').value='EXTENSION UNICA'; run('renderPickerResults()'
 assert.ok(element('#picker-results').innerHTML.includes('propio-test'));
 assert.equal(run("normalize('MáQUINA')"),'maquina');
 const separated = run("progress({grupo:'pecho'},[{fecha:'2026-10-01',implemento:'Barra',series:[{kg:60,reps:5}]},{fecha:'2026-10-02',implemento:'Mancuerna',series:[{kg:20,reps:10}]}])");
-assert.ok(separated.includes('<h3>Barra</h3>')); assert.ok(separated.includes('<h3>Mancuerna</h3>'));
+assert.ok(separated.includes('60 kg')); assert.ok(separated.includes('20 kg'));
+assert.ok(!separated.includes('<h3>Barra</h3>'));
 assert.ok(!separated.includes('500 kg × reps'));
 // Equipment is saved, validated and omitted for cardio.
 elements.delete('#record-form');
@@ -193,7 +196,7 @@ assert.equal((element('#app').innerHTML.match(/class="panel program"/g)||[]).len
 assert.equal(run("parseDaySeries([{}, {kg:'',reps:''}]).length"),0);
 assert.equal(run("parseDaySeries([{kg:'0',reps:'10'}])[0].kg"),0);
 assert.throws(()=>run("parseDaySeries([{kg:'-1',reps:'10'}])"));
-assert.throws(()=>run("parseDaySeries([{kg:'10',reps:''}])"));
+assert.equal(run("parseDaySeries([{kg:'10',reps:''}])[0].kg"),10);
 // Retry a partial day save: update the exercise already written, insert only the missing one.
 const stored = new Map(), writes = [];
 let failAttendance = true;
@@ -206,8 +209,9 @@ context.dayData={owner:'usuario',fecha:'2026-10-28',fue:true,rutina:'d1',comenta
 run('db=dayDb'); await assert.rejects(run('persistDay(dayData)'),/fallo asistencia/);
 assert.equal(context.dayData.entries[0].series[0].kg,'40,5');
 failAttendance=false; await run('persistDay(dayData)');
-assert.equal(writes.filter(([kind])=>kind==='insert').length,1);
-assert.equal(writes.filter(([kind])=>kind==='update').length,1);
+assert.equal(writes.filter(([kind])=>kind==='insert').length,2);
+assert.equal(writes.filter(([kind])=>kind==='update').length,2);
+assert.equal(stored.get('sin-series').series.length,0);
 assert.equal(stored.get('Barbell_Squat').series[0].kg,40.5);
 assert.equal(writes.at(-1)[1].user_id,'usuario');
 context.dayData.fue=null; await run('persistDay(dayData)');
@@ -216,3 +220,56 @@ run("dayDraft={fecha:'2026-10-28',rutina:'d1',entries:[],history:[{ejercicio:'Ba
 assert.equal(run('dayDraft.entries.length'),1); assert.equal(run('dayDraft.entries[0].series[0].kg'),50);
 assert.ok(read('index.html').includes('<span>Resumen</span>')); assert.ok(read('index.html').includes('<span>Rutinas</span>'));
 console.log('OK · calendario, rutinas, programas, validación, precarga y reintentos del día sin duplicados.');
+
+// Optional fields, durations, zero values and independent chart metrics.
+assert.equal(run("parseDaySeries([{seg:'1:30'}])[0].seg"),90);
+assert.equal(run("parseDaySeries([{seg:'45',kg:'',reps:''}])[0].seg"),45);
+assert.equal(run("parseDaySeries([{kg:'0',reps:'0',seg:'0'}])[0].reps"),0);
+assert.equal(run("formatTime(90)"),'1:30'); assert.equal(run("formatTime(45)"),'45 s');
+assert.equal(run("formatSeries({series:[{seg:90}]},{grupo:'abdomen'})"),'1:30');
+assert.equal(run("formatSeries({series:[{reps:0}]},{grupo:'pecho'})"),'0 reps');
+for (const value of ['-1','Infinity','NaN','1:60','1:2','x']) assert.throws(()=>run('parseDaySeries([{seg:'+JSON.stringify(value)+'}])'));
+const timed=run("progress({grupo:'abdomen'},[{fecha:'2026-10-01',series:[{seg:90}]}])");
+assert.ok(timed.includes('Tiempo máximo')); assert.ok(timed.includes('1:30')); assert.ok(!timed.includes('Peso máximo')); assert.ok(!timed.includes('NaN')); assert.ok(timed.includes('<title>'));
+const monthly=run("progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:10},{min:20}]},{fecha:'2026-10-02',series:[{min:15,km:2}]}],'month')");
+assert.ok(monthly.includes('30 min')); assert.ok(!monthly.includes('45 min')); assert.ok(monthly.includes('2 km'));
+assert.equal(run("seriesHTML({seg:90},{grupo:'abdomen'})").includes('value="1:30"'),true);
+assert.ok(!run("seriesHTML({},{grupo:'abru'})").includes('required'));
+assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v6'"));
+console.log('OK · series opcionales, tiempo, métricas independientes y mejor día del mes.');
+
+assert.equal(run("parseDaySeries([{seg:formatTime(60.5)}])[0].seg"),60.5);
+// Removing an exercise deletes only that account/date/exercise, and failed deletes are reported.
+const deletions=[];
+context.deletionDb={from(table){const filters={};return {delete(){return this},eq(k,v){filters[k]=v;return this},then(resolve){deletions.push({table,filters});resolve({error:null})}}}};
+run('db=deletionDb');
+await run("persistDay({owner:'usuario',fecha:'2026-10-28',entries:[],removed:['quitar'],fue:null})");
+assert.deepEqual(deletions[0],{table:'registros',filters:{user_id:'usuario',fecha:'2026-10-28',ejercicio:'quitar'}});
+run("dayDraft={owner:'usuario',fecha:'2026-10-28',entries:[{ejercicio:'quitar',series:[]}],removed:[]}; renderedUser='usuario'");
+await run("handleRoutineDayClick({dataset:{dayRemove:'quitar'}})");
+assert.equal(run('dayDraft.entries.length'),0); assert.equal(run('dayDraft.removed[0]'),'quitar');
+run("addDayEntry('quitar')"); assert.equal(run('dayDraft.removed.length'),0);
+// Progress only lists recorded exercises and keeps account filters on its query.
+const progressFilters=[];
+context.progressDb={from(){return {select(){return this},eq(k,v){progressFilters.push([k,v]);return this},order:async()=>({data:[{ejercicio:'Barbell_Squat',fecha:'2026-10-28',series:[],implemento:'Barra'},{ejercicio:'Barbell_Squat',fecha:'2026-10-27',series:[{kg:40}],implemento:'Mancuerna'}]})}}};
+run('db=progressDb'); await run('renderProgress(undefined,routeVersion)');
+assert.equal((element('#app').innerHTML.match(/class="entry search-result"/g)||[]).length,1);
+assert.ok(element('#app').innerHTML.includes('2 registros')); assert.ok(element('#app').innerHTML.includes('2026-10-28'));
+await run("renderProgress('Barbell_Squat',routeVersion)");
+assert.ok(element('#app').innerHTML.includes('Día a día')); assert.ok(element('#app').innerHTML.includes('Mes a mes'));
+assert.ok(element('#app').innerHTML.includes('Mancuerna')); assert.ok(element('#app').innerHTML.includes('Barra'));
+assert.ok(progressFilters.every(([k,v])=>k==='user_id' && v==='usuario'));
+console.log('OK · quitar ejercicios, conservar alcance por cuenta/fecha y navegación de progreso.');
+
+const chips=[0,1,2].map(index=>({dataset:{equipmentIndex:String(index)},setAttribute(){}}));
+element('#progress-equipment').querySelectorAll=()=>chips;
+element('#progress-equipment').onclick({target:{closest:()=>chips[1]}});
+assert.ok(!element('#progress-charts').innerHTML.includes('40 kg'));
+element('#progress-equipment').onclick({target:{closest:()=>chips[2]}});
+assert.ok(element('#progress-charts').innerHTML.includes('40 kg'));
+context.deletionDb.from=()=>({delete(){return this},eq(){return this},then(resolve){resolve({error:new Error('fallo al quitar')})}});
+run('db=deletionDb');
+await assert.rejects(run("persistDay({owner:'usuario',fecha:'2026-10-28',entries:[],removed:['quitar'],fue:null})"),/fallo al quitar/);
+let messageScrolled=false; element('#message').scrollIntoView=()=>{messageScrolled=true};
+run("message('Revisá la serie')"); assert.equal(messageScrolled,true);
+console.log('OK · filtros de implemento, errores al quitar y mensaje visible.');

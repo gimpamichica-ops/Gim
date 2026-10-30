@@ -20,15 +20,16 @@ function rememberDraft() {
   if (!form?.elements || !renderedHash) return;
   drafts.set(`${renderedUser}:${renderedHash}`,{fecha:form.elements.fecha.value,nota:form.elements.nota.value,implemento:form.querySelector('input[name=implemento]:checked')?.value || '',series:[...form.querySelectorAll('.series')].map(row => Object.fromEntries([...row.querySelectorAll('input')].map(input => [input.dataset.field,input.value])))});
 }
-function message(text = '') { $('#message').textContent = text; $('#message').hidden = !text; }
+function message(text = '') { $('#message').textContent = text; $('#message').hidden = !text; if (text) $('#message').scrollIntoView?.({block:'start'}); }
 function check(result) { if (result.error) throw result.error; return result.data; }
 function fail(error) {
   if (error.status === 401 || ['PGRST301','PGRST303'].includes(error.code)) { rememberDraft(); renderedHash = undefined; ++routeVersion; selectionTarget = null; dayDraft = null; user = null; login(); }
   message(`No pudimos completar la acción. ${error.message || 'Revisá tu conexión e intentá de nuevo.'}`); }
-function formatSeries(row, e) { return row.series.map(s => e?.grupo === 'cardio' ? `${s.min} min${s.km ? ` · ${s.km} km` : ''}` : `${s.kg || 0} kg × ${s.reps} ${e?.unidad || 'reps'}`).join(' / '); }
+function formatTime(n) { return n < 60 ? n+' s' : Math.floor(n/60)+':'+(n%60 < 10 ? '0' : '')+Number((n%60).toFixed(3)); }
+function formatSeries(row,e) { return row.series.map(s => e?.grupo === 'cardio' ? [s.min !== undefined ? s.min+' min' : '',s.km !== undefined ? s.km+' km' : ''].filter(Boolean).join(' · ') : [[s.kg !== undefined ? s.kg+' kg' : '',s.reps !== undefined ? s.reps+' '+(e?.unidad || 'reps') : ''].filter(Boolean).join(' × '),s.seg !== undefined ? formatTime(s.seg) : ''].filter(Boolean).join(' · ')).filter(Boolean).join(' / '); }
 function image(e, cls = '') { return e.img ? `<img class="${cls}" src="${escapeHTML(e.img)}" alt="${escapeHTML(name(e))}" loading="lazy">` : `<div class="initial">${escapeHTML(name(e).charAt(0).toUpperCase())}</div>`; }
 function login() {
-  $('#nav').hidden = $('#logout').hidden = true;
+  $('#nav').hidden = $('#settings-link').hidden = true;
   $('#app').innerHTML = `<section class="login"><div class="login-logo" aria-hidden="true">GYM<span>&bull;</span></div><p class="eyebrow">Tu espacio de entrenamiento</p><h1>Un día más.<br>Un poco más fuerte.</h1><p class="muted">Entrá para guardar tus entrenamientos y ver cómo avanzás.</p><form id="login"><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label><button class="primary wide">Entrar <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></form></section>`;
   $('#login').onsubmit = async event => {
     event.preventDefault(); const form = event.target; const button = form.querySelector('button'); button.disabled = true; message();
@@ -50,11 +51,11 @@ async function route() {
   const version = ++routeVersion;
   if (!user) return;
   rememberDraft();
-  message(); $('#nav').hidden = $('#logout').hidden = false;
+  message(); $('#nav').hidden = $('#settings-link').hidden = false;
   if (location.hash === '#mes') location.hash = '#resumen';
   const hash = location.hash || '#resumen';
   if (hash !== '#registrar' && !hash.startsWith('#dia/')) selectionTarget = null;
-  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active',a.hash === (hash.startsWith('#ejercicio/') ? '#registrar' : hash.startsWith('#dia/') ? '#resumen' : hash.startsWith('#abru/') ? '#abru' : hash)));
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active',a.hash === (hash.startsWith('#progreso/') ? '#progreso' : hash.startsWith('#ejercicio/') ? '#registrar' : hash.startsWith('#dia/') ? '#resumen' : hash.startsWith('#abru/') ? '#abru' : hash)));
   try {
     if (hash.startsWith('#ejercicio/')) {
       const [,id,recordId] = hash.split('/');
@@ -66,6 +67,8 @@ async function route() {
       if (recordId && !editing) throw new Error('Ese registro ya no existe.');
       renderExercise();
     } else if (hash === '#registrar') { pickerGroup = null; renderPicker(); }
+    else if (hash === '#ajustes') $('#app').innerHTML = '<h1>Ajustes</h1><p>'+escapeHTML(user.email)+'</p><button id="logout" class="danger">Cerrar sesión</button>';
+    else if (hash === '#progreso' || hash.startsWith('#progreso/')) await renderProgress(hash.split('/')[1],version);
     else if (hash === '#rutinas') renderRoutines();
     else if (hash.startsWith('#dia/')) await openDay(hash.slice(5),version);
     else if (hash.startsWith('#abru')) renderAbru(hash.split('/')[1] ? decodeURIComponent(hash.split('/')[1]) : null);
@@ -82,7 +85,7 @@ async function renderMonth(version) {
   monthRows = rows;
   const marked = attendance.filter(d => d.fecha.startsWith(month));
   const days = [...new Set([...rows.map(row => row.fecha),...marked.map(d => d.fecha)])].sort().reverse();
-  $('#app').innerHTML = `<p class="eyebrow">Tu entrenamiento, día a día</p><div class="row between month"><button data-month="-1" aria-label="Mes anterior">‹</button><h1>${escapeHTML(monthLabel(month))}</h1><button data-month="1" aria-label="Mes siguiente">›</button></div><a class="primary button wide" href="#registrar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</a>${summaryHTML(attendance)}<p class="muted">${rows.length} registro${rows.length === 1 ? '' : 's'} · ${days.length} día${days.length === 1 ? '' : 's'} de movimiento</p>${days.length ? days.map(day => `<section class="day"><div class="dayhead"><span class="date-badge"><strong>${Number(day.slice(-2))}</strong><span>${new Date(`${day}T12:00:00`).toLocaleDateString('es-AR',{weekday:'short'})}</span></span><h2><button data-day="${day}">${marked.find(d => d.fecha === day)?.fue === false ? "No fui" : "Tu entrenamiento"}</button></h2></div>${marked.find(d => d.fecha === day)?.comentario ? `<p>${escapeHTML(marked.find(d => d.fecha === day).comentario)}</p>` : ""}${rows.filter(row => row.fecha === day).map(row => { const e = exercises().find(e => e.id === row.ejercicio); return `<button class="entry" data-record="${escapeHTML(row.id)}"><div><strong>${escapeHTML(e ? name(e) : row.ejercicio)}${row.implemento ? ` · ${escapeHTML(row.implemento)}` : ''}</strong><small>${row.series.length} serie${row.series.length === 1 ? '' : 's'} · ${e?.grupo === 'cardio' ? `${row.series.reduce((sum,s) => sum + (s.min || 0),0)} min` : `máx ${Math.max(0,...row.series.map(s => s.kg || 0))} kg`}</small><small>${escapeHTML(formatSeries(row,e))}</small>${row.nota ? `<small>${escapeHTML(row.nota)}</small>` : ''}</div><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>`; }).join('')}</section>`).join('') : '<div class="panel empty">Todavía no hay entrenamientos este mes.<br>Tu próximo paso empieza con un registro.</div>'}`;
+  $('#app').innerHTML = `<p class="eyebrow">Tu entrenamiento, día a día</p><div class="row between month"><button data-month="-1" aria-label="Mes anterior">‹</button><h1>${escapeHTML(monthLabel(month))}</h1><button data-month="1" aria-label="Mes siguiente">›</button></div><a class="primary button wide" href="#registrar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</a>${summaryHTML(attendance)}<p class="muted">${rows.length} registro${rows.length === 1 ? '' : 's'} · ${days.length} día${days.length === 1 ? '' : 's'} de movimiento</p>${days.length ? days.map(day => `<section class="day"><div class="dayhead"><span class="date-badge"><strong>${Number(day.slice(-2))}</strong><span>${new Date(`${day}T12:00:00`).toLocaleDateString('es-AR',{weekday:'short'})}</span></span><h2><button data-day="${day}">${marked.find(d => d.fecha === day)?.fue === false ? "No fui" : "Tu entrenamiento"}</button></h2></div>${marked.find(d => d.fecha === day)?.comentario ? `<p>${escapeHTML(marked.find(d => d.fecha === day).comentario)}</p>` : ""}${rows.filter(row => row.fecha === day).map(row => { const e = exercises().find(e => e.id === row.ejercicio); return `<button class="entry" data-record="${escapeHTML(row.id)}"><div><strong>${escapeHTML(e ? name(e) : row.ejercicio)}${row.implemento ? ` · ${escapeHTML(row.implemento)}` : ''}</strong><small>${row.series.length} serie${row.series.length === 1 ? '' : 's'}</small><small>${escapeHTML(formatSeries(row,e))}</small>${row.nota ? `<small>${escapeHTML(row.nota)}</small>` : ''}</div><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>`; }).join('')}</section>`).join('') : '<div class="panel empty">Todavía no hay entrenamientos este mes.<br>Tu próximo paso empieza con un registro.</div>'}`;
 }
 function renderPicker() {
   $('#app').innerHTML = `<p class="eyebrow">Sumá un entrenamiento</p><h1>¿Qué entrenás hoy?</h1><label class="search">Buscar en todos los grupos<input id="exercise-search" type="search" placeholder="Nombre del ejercicio" autocomplete="off"></label><div id="picker-results"></div>`;
@@ -151,29 +154,45 @@ function muscleMap(e) {
   return '<section class="panel muscles"><h3>Músculos que trabajás</h3><svg viewBox="0 0 210 230" role="img" aria-label="Mapa muscular de frente y espalda">'+figure(front,0)+figure(back,110)+'<g fill="#a8b6ce" font-size="9" text-anchor="middle"><text x="50" y="226">FRENTE</text><text x="160" y="226">ESPALDA</text></g></svg><p class="legend"><span><span class="swatch primary-swatch"></span>Principal</span><span><span class="swatch secondary-swatch"></span>Secundario</span></p>'+(!(e.musculos || []).length ? '<small>Sin músculos especificados para este ejercicio.</small>' : '')+'</section>';
 }
 
-function progress(e,rows) {
-  const equipment = [...new Set(rows.map(r => r.implemento || 'Sin implemento'))];
-  if (e.grupo !== 'cardio' && equipment.length > 1) return equipment.map(value => '<section><h3>'+escapeHTML(value)+'</h3>'+progress(e,rows.filter(r => (r.implemento || 'Sin implemento') === value))+'</section>').join('');
-  const months = [...new Set(rows.map(r => r.fecha.slice(0,7)))].sort();
-  if (!months.length) return '<p class="muted">Tu progreso va a aparecer después del primer registro.</p>';
-  const stats = months.map(m => {
-    const sets = rows.filter(r => r.fecha.startsWith(m)).flatMap(r => r.series);
-    const best = sets.reduce((a,s) => !a || s.kg > a.kg || (s.kg === a.kg && s.reps > a.reps) ? s : a,null);
-    return {month:m,max:Math.max(0,...sets.map(s => Number(s.kg)||0)),best,volume:sets.reduce((sum,s) => sum+(s.kg||0)*(s.reps||0),0),minutes:sets.reduce((sum,s) => sum+(s.min||0),0)};
+function progress(e,rows,period = 'day') {
+  const metrics = e.grupo === 'cardio' ? [['min','Minutos totales','min'],['km','Km','km']] : [['kg','Peso máximo','kg'],['reps','Repeticiones máximas',e.unidad || 'reps'],['seg','Tiempo máximo','seg']];
+  const days = [...new Set(rows.map(r => r.fecha))].sort().map(date => {
+    const sets = rows.filter(r => r.fecha === date).flatMap(r => r.series);
+    return {date,values:Object.fromEntries(metrics.map(([field]) => { const values = sets.map(s => s[field]).filter(Number.isFinite); return [field,values.length ? (e.grupo === 'cardio' ? values.reduce((a,b) => a+b,0) : Math.max(...values)) : undefined]; }))};
   });
-  const max = Math.max(1,...stats.map(s => s.max));
-  const points = stats.map((s,i) => `${20+i*280/Math.max(1,stats.length-1)},${115-s.max/max*90}`);
-  return `${e.grupo !== 'cardio' ? `<svg class="chart" viewBox="0 0 320 150" role="img" aria-label="Peso máximo por mes, de ${escapeHTML(monthLabel(months[0]))} a ${escapeHTML(monthLabel(months.at(-1)))}"><path d="M20 15V120H305" fill="none" stroke="#1d2c4a"/><polyline points="${points.join(' ')}" fill="none" stroke="#60a5fa" stroke-width="3"/>${stats.map((s,i) => `<circle cx="${points[i].split(',')[0]}" cy="${points[i].split(',')[1]}" r="4" fill="#60a5fa"><title>${s.month}: ${s.max} kg</title></circle>`).join('')}<g fill="#a8b6ce" font-size="10"><text x="20" y="140">${months[0]}</text><text x="255" y="140">${months.at(-1)}</text><text x="24" y="14">${max === 1 && !stats.some(s => s.max) ? 0 : max} kg</text></g></svg>` : ''}${stats.reverse().map(s => `<div class="progress-row"><strong>${escapeHTML(monthLabel(s.month))}</strong><p>${e.grupo === 'cardio' ? `${s.minutes} minutos totales` : `Máximo: ${s.max} kg · Mejor serie: ${s.best?.kg || 0} kg × ${s.best?.reps || 0} ${e.unidad || 'reps'}<br>Volumen: ${s.volume.toLocaleString('es-AR')} kg × reps`}</p></div>`).join('')}`;
+  const keys = [...new Set(days.map(d => d.date.slice(0,period === 'month' ? 7 : 10)))];
+  const html = metrics.map(([field,label,unit]) => {
+    const points = keys.map(key => { const values = days.filter(d => d.date.startsWith(key)).map(d => d.values[field]).filter(Number.isFinite); return {key,value:values.length ? Math.max(...values) : undefined}; }).filter(p => p.value !== undefined);
+    if (!points.length) return '';
+    const max = Math.max(1,...points.map(p => p.value)), display = n => field === 'seg' ? formatTime(n) : n+' '+unit;
+    const coords = points.map((p,i) => [45+i*250/Math.max(1,points.length-1),115-p.value/max*90]);
+    return '<section class="panel"><h2>'+escapeHTML(label)+'</h2><svg class="chart" viewBox="0 0 340 155" role="img" aria-label="'+escapeHTML(label+(period === 'month' ? ' mes a mes' : ' día a día'))+'"><path d="M45 20V120H310" fill="none" stroke="#a8b6ce"/><polyline points="'+coords.map(c => c.join(',')).join(' ')+'" fill="none" stroke="#60a5fa" stroke-width="3"/>'+points.map((p,i) => '<circle cx="'+coords[i][0]+'" cy="'+coords[i][1]+'" r="4" fill="#93c5fd"><title>'+escapeHTML(p.key+': '+display(p.value))+'</title></circle>').join('')+'<g fill="#a8b6ce" font-size="10"><text x="2" y="15">'+escapeHTML(display(Math.max(...points.map(p => p.value))))+'</text><text x="2" y="120">0</text><text x="45" y="145">'+escapeHTML(points[0].key)+'</text><text x="335" y="145" text-anchor="end">'+(points.length > 1 ? escapeHTML(points.at(-1).key) : '')+'</text></g></svg>'+points.map(p => '<div class="progress-row"><strong>'+escapeHTML(p.key)+'</strong> · '+escapeHTML(display(p.value))+'</div>').join('')+'</section>';
+  }).join('');
+  return html || '<p class="muted">Tu progreso va a aparecer cuando registres alguna métrica.</p>';
 }
-function seriesHTML(s = {}, e = current, required = true) {
-  const cardio = e.grupo === 'cardio';
-  if (e.grupo === 'abru' && s.kg === undefined) s = {...s,kg:0};
-  return `<div class="series"><span></span><label>${cardio ? 'Minutos' : 'Kg'}<input aria-label="${cardio ? 'Minutos' : 'Kilos'}" data-field="${cardio ? 'min' : 'kg'}" type="text" inputmode="decimal" value="${escapeHTML(cardio ? s.min ?? '' : s.kg ?? '')}" ${required ? 'required' : ''}></label><label>${cardio ? 'Km (opcional)' : e.unidad || 'Reps'}<input aria-label="${cardio ? 'Kilómetros, opcional' : e.unidad || 'Repeticiones'}" data-field="${cardio ? 'km' : 'reps'}" type="text" inputmode="decimal" value="${escapeHTML(cardio ? s.km ?? '' : s.reps ?? '')}" ${!cardio && required ? 'required' : ''}></label><button type="button" data-remove aria-label="Quitar serie">×</button></div>`;
+async function renderProgress(id,version) {
+  const rows = check(await db.from('registros').select('*').eq('user_id',user.id).order('fecha',{ascending:false}));
+  if (version !== routeVersion) return;
+  if (!id) {
+    $('#app').innerHTML = '<h1>Progreso</h1>'+([...new Set(rows.map(r => r.ejercicio))].map(id => { const e = exercises().find(e => e.id === id) || {id,nombre:id}, records = rows.filter(r => r.ejercicio === id); return '<a class="entry search-result" href="#progreso/'+encodeURIComponent(id)+'">'+image(e)+'<div><strong>'+escapeHTML(name(e))+'</strong><small>'+records.length+' registro'+(records.length === 1 ? '' : 's')+' · '+escapeHTML(records[0].fecha)+'</small></div></a>'; }).join('') || '<p class="muted">Todavía no hay registros.</p>'); return;
+  }
+  id = decodeURIComponent(id);
+  const e = exercises().find(e => e.id === id) || {id,nombre:id}, records = rows.filter(r => r.ejercicio === id), equipment = [...new Set(records.map(r => r.implemento || ''))];
+  let selected = null;
+  $('#app').innerHTML = '<a class="button back" href="#progreso">‹ Progreso</a><h1>'+escapeHTML(name(e))+'</h1><label>Ver progreso<select id="progress-period"><option value="day">Día a día</option><option value="month">Mes a mes</option></select></label><div class="tabs" id="progress-equipment">'+(equipment.length > 1 ? [null,...equipment].map((value,i) => '<button data-equipment-index="'+i+'" aria-pressed="'+(i === 0)+'">'+escapeHTML(value === null ? 'Todos' : value || 'Sin implemento')+'</button>').join('') : '')+'</div><div id="progress-charts"></div>';
+  const update = () => { $('#progress-charts').innerHTML = progress(e,selected === null ? records : records.filter(r => (r.implemento || '') === selected),$('#progress-period').value); };
+  $('#progress-period').onchange = update;
+  $('#progress-equipment').onclick = event => { const button = event.target.closest('button'); if (!button) return; selected = [null,...equipment][Number(button.dataset.equipmentIndex)]; $('#progress-equipment').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed',b === button)); update(); };
+  update();
+}
+function seriesHTML(s = {},e = current) {
+  const fields = e.grupo === 'cardio' ? [['min','Minutos'],['km','Km']] : [['kg','Kg'],['reps',e.unidad || 'Reps'],['seg','Tiempo']];
+  return '<div class="series '+(e.grupo === 'cardio' ? 'cardio-series' : '')+'"><span></span>'+fields.map(([field,label]) => '<label>'+escapeHTML(label)+'<input aria-label="'+escapeHTML(label)+'" data-field="'+field+'" type="text" inputmode="'+(field === 'seg' ? 'text' : 'decimal')+'" '+(field === 'seg' ? 'placeholder="1:30"' : '')+' value="'+escapeHTML(field === 'seg' && typeof s.seg === 'number' && s.seg >= 60 ? formatTime(s.seg) : s[field] ?? '')+'"></label>').join('')+'<button type="button" data-remove aria-label="Quitar serie">×</button></div>';
 }
 function numberSeries() { document.querySelectorAll('.series').forEach((row,i) => { row.firstElementChild.textContent = i+1; row.querySelector('[data-remove]').disabled = document.querySelectorAll('.series').length === 1; }); }
 function renderExercise() {
   const e = current; const last = exerciseRows.find(r => r.id !== editing?.id);
-  $('#app').innerHTML = `<a class="button back" href="${e.grupo === 'abru' ? '#abru' : '#registrar'}">‹ Ejercicios</a><p class="chip group-${escapeHTML(e.grupo)}">${escapeHTML(groups[e.grupo])}</p><div class="row between"><h1>${escapeHTML(name(e))}</h1><button id="rename" aria-label="Renombrar ejercicio">✎</button></div>${settings.nombres[e.id] ? '<button id="reset-name">Volver al nombre original</button>' : ''}<button class="hero" id="toggle-image" aria-label="Alternar posición inicial y final">${image(e)}</button>${e.img2 ? '<small>Tocá la imagen para ver la otra posición.</small>' : ''}${e.como ? `<p>${escapeHTML(e.como)}</p>` : ''}${muscleMap(e)}<form id="record-form"><h2>${editing ? 'Editar registro' : 'Tu entrenamiento'}</h2>${last ? `<p class="panel">La última vez · ${escapeHTML(last.fecha)}<br><strong>${escapeHTML(formatSeries(last,e))}</strong>${last.implemento ? ` · ${escapeHTML(last.implemento)}` : ''}</p>` : '<p class="muted">Primer registro. Este es tu punto de partida.</p>'}<label>Fecha<input name="fecha" type="date" required value="${editing?.fecha || today()}"></label>${e.grupo !== 'cardio' ? `<fieldset class="equipment"><legend>Implemento <span class="muted">· opcional</span></legend><label><input type="radio" name="implemento" value="" ${!(editing ? editing.implemento : last?.implemento) ? 'checked' : ''}><span>Sin especificar</span></label>${implementsList.map(value => `<label><input type="radio" name="implemento" value="${value}" ${(editing ? editing.implemento : last?.implemento) === value ? 'checked' : ''}><span>${value}</span></label>`).join('')}</fieldset>` : ''}<div id="series">${(editing?.series.length ? editing.series : [{}]).map(s => seriesHTML(s)).join('')}</div><div class="actions"><button type="button" id="add-series"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Serie</button><button type="button" id="copy-series">Copiar la última</button></div><label>Nota<textarea name="nota" rows="3" placeholder="¿Cómo te sentiste?">${escapeHTML(editing?.nota || '')}</textarea></label><button class="primary wide" type="submit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg> Guardar entrenamiento</button>${editing ? '<button type="button" class="danger wide" id="delete-record" style="margin-top:12px">Borrar registro</button>' : ''}</form><section class="panel"><h2>Tu progreso</h2>${progress(e,exerciseRows)}</section><h2>Historial</h2>${exerciseRows.map(r => `<button class="entry" data-record="${escapeHTML(r.id)}"><div><strong>${escapeHTML(r.fecha)}</strong><small>${escapeHTML(name(e))}${r.implemento ? ` · ${escapeHTML(r.implemento)}` : ''}</small><small>${escapeHTML(formatSeries(r,e))}</small></div><span>✎</span></button>`).join('') || '<p class="muted">Todavía no hay registros.</p>'}`;
+  $('#app').innerHTML = `<a class="button back" href="${e.grupo === 'abru' ? '#abru' : '#registrar'}">‹ Ejercicios</a><p class="chip group-${escapeHTML(e.grupo)}">${escapeHTML(groups[e.grupo])}</p><div class="row between"><h1>${escapeHTML(name(e))}</h1><button id="rename" aria-label="Renombrar ejercicio">✎</button></div>${settings.nombres[e.id] ? '<button id="reset-name">Volver al nombre original</button>' : ''}<button class="hero" id="toggle-image" aria-label="Alternar posición inicial y final">${image(e)}</button>${e.img2 ? '<small>Tocá la imagen para ver la otra posición.</small>' : ''}${e.como ? `<p>${escapeHTML(e.como)}</p>` : ''}${muscleMap(e)}<form id="record-form"><h2>${editing ? 'Editar registro' : 'Tu entrenamiento'}</h2>${last ? `<p class="panel">La última vez · ${escapeHTML(last.fecha)}<br><strong>${escapeHTML(formatSeries(last,e))}</strong>${last.implemento ? ` · ${escapeHTML(last.implemento)}` : ''}</p>` : '<p class="muted">Primer registro. Este es tu punto de partida.</p>'}<label>Fecha<input name="fecha" type="date" required value="${editing?.fecha || today()}"></label>${e.grupo !== 'cardio' ? `<fieldset class="equipment"><legend>Implemento <span class="muted">· opcional</span></legend><label><input type="radio" name="implemento" value="" ${!(editing ? editing.implemento : last?.implemento) ? 'checked' : ''}><span>Sin especificar</span></label>${implementsList.map(value => `<label><input type="radio" name="implemento" value="${value}" ${(editing ? editing.implemento : last?.implemento) === value ? 'checked' : ''}><span>${value}</span></label>`).join('')}</fieldset>` : ''}<div id="series">${(editing ? editing.series : last?.series.length ? last.series : [{}]).map(s => seriesHTML(s)).join('')}</div><div class="actions"><button type="button" id="add-series"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Serie</button><button type="button" id="copy-series">Copiar la última</button></div><label>Nota<textarea name="nota" rows="3" placeholder="¿Cómo te sentiste?">${escapeHTML(editing?.nota || '')}</textarea></label><button class="primary wide" type="submit"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg> Guardar entrenamiento</button>${editing ? '<button type="button" class="danger wide" id="delete-record" style="margin-top:12px">Borrar registro</button>' : ''}</form><section class="panel"><h2>Tu progreso</h2><a class="button wide" href="#progreso/${encodeURIComponent(e.id)}">Ver gráficos de progreso</a></section><h2>Historial</h2>${exerciseRows.map(r => `<button class="entry" data-record="${escapeHTML(r.id)}"><div><strong>${escapeHTML(r.fecha)}</strong><small>${escapeHTML(name(e))}${r.implemento ? ` · ${escapeHTML(r.implemento)}` : ''}</small><small>${escapeHTML(formatSeries(r,e))}</small></div><span>✎</span></button>`).join('') || '<p class="muted">Todavía no hay registros.</p>'}`;
   const draft = drafts.get(`${user.id}:${location.hash}`);
   if (draft) {
     $('#record-form').elements.fecha.value = draft.fecha;
@@ -187,15 +206,7 @@ async function saveRecord(event) {
   event.preventDefault(); if (busy) return; message();
   const form = event.target; const version = routeVersion; const hash = `${renderedUser}:${renderedHash}`;
   try {
-    const series = [...document.querySelectorAll('.series')].map(row => {
-      const s = {};
-      row.querySelectorAll('input').forEach(input => {
-        const raw = input.value.trim().replace(',','.'); const n = Number(raw);
-        if (!raw && input.dataset.field === 'km') return;
-        if (!raw || !Number.isFinite(n) || n < 0 || (['reps','min'].includes(input.dataset.field) && n <= 0)) throw new Error('Completá las series con números válidos y positivos (kg puede ser 0).');
-        s[input.dataset.field] = n;
-      }); return s;
-    });
+    const series = parseDaySeries([...document.querySelectorAll('.series')].map(row => Object.fromEntries([...row.querySelectorAll('input')].map(input => [input.dataset.field,input.value]))));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.fecha.value)) throw new Error('Elegí una fecha válida.');
     const implemento = current.grupo === 'cardio' ? null : form.querySelector('input[name=implemento]:checked')?.value || null;
     if (implemento && !implementsList.includes(implemento)) throw new Error('Elegí un implemento válido.');
@@ -254,28 +265,33 @@ async function openDay(date,version) {
 }
 function addDayEntry(id) {
   if (dayDraft.entries.some(e => e.ejercicio === id)) return;
+  dayDraft.removed = (dayDraft.removed || []).filter(value => value !== id);
   const last = (dayDraft.history || []).find(r => r.ejercicio === id && r.fecha <= dayDraft.fecha);
   dayDraft.entries.push({ejercicio:id,implemento:last?.implemento || '',nota:'',series:last?.series.map(s => ({...s})) || [{}]});
 }
 function addRoutineEntries() { settings.rutinas.find(r => r.id === dayDraft.rutina)?.ejercicios.forEach(addDayEntry); }
 function renderDay() {
   const d = dayDraft;
-  $('#app').innerHTML = `<a class="button back" href="#resumen">‹ Resumen</a><h1 class="day-title">${escapeHTML(new Date(d.fecha+"T12:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}))}</h1><form id="day-form"><div class="actions"><button type="button" data-attendance="true" aria-pressed="${d.fue === true}" class="${d.fue === true ? 'primary' : ''}">Fui</button><button type="button" data-attendance="false" aria-pressed="${d.fue === false}" class="${d.fue === false ? 'primary' : ''}">No fui</button><button type="button" id="clear-attendance">Borrar marca</button></div><label>Qué día de rutina hice<select id="day-routine"><option value="">Libre</option>${settings.rutinas.map(r => `<option value="${escapeHTML(r.id)}" ${d.rutina === r.id ? 'selected' : ''}>${escapeHTML(r.nombre)}</option>`).join('')}</select></label><label>Comentario del día<textarea name="comentario">${escapeHTML(d.comentario)}</textarea></label><h2>Entrenamiento</h2>${d.entries.map(entry => { const e = exercises().find(e => e.id === entry.ejercicio); if (!e) return ''; return `<section class="panel compact" data-day-exercise="${escapeHTML(e.id)}"><div class="row">${image(e)}<h3>${escapeHTML(name(e))}</h3></div><label>Implemento<select><option value="">Sin especificar</option>${implementsList.map(value => `<option ${entry.implemento === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><div class="day-series">${entry.series.map(s => seriesHTML(s,e,false)).join('')}</div><button type="button" data-day-series="${escapeHTML(e.id)}">+ serie</button><label>Nota<textarea>${escapeHTML(entry.nota)}</textarea></label></section>`; }).join('')}<button type="button" id="day-add-exercise" class="wide">Agregar otro ejercicio</button><button class="primary wide" type="submit">Guardar día</button></form>`;
+  $('#app').innerHTML = `<a class="button back" href="#resumen">‹ Resumen</a><h1 class="day-title">${escapeHTML(new Date(d.fecha+"T12:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}))}</h1><form id="day-form"><div class="actions"><button type="button" data-attendance="true" aria-pressed="${d.fue === true}" class="${d.fue === true ? 'primary' : ''}">Fui</button><button type="button" data-attendance="false" aria-pressed="${d.fue === false}" class="${d.fue === false ? 'primary' : ''}">No fui</button><button type="button" id="clear-attendance">Borrar marca</button></div><label>Qué día de rutina hice<select id="day-routine"><option value="">Libre</option>${settings.rutinas.map(r => `<option value="${escapeHTML(r.id)}" ${d.rutina === r.id ? 'selected' : ''}>${escapeHTML(r.nombre)}</option>`).join('')}</select></label><label>Comentario del día<textarea name="comentario">${escapeHTML(d.comentario)}</textarea></label><h2>Entrenamiento</h2>${d.entries.map(entry => { const e = exercises().find(e => e.id === entry.ejercicio); if (!e) return ''; return `<section class="panel compact" data-day-exercise="${escapeHTML(e.id)}"><div class="row">${image(e)}<h3>${escapeHTML(name(e))}</h3><button type="button" class="danger" data-day-remove="${escapeHTML(e.id)}">Quitar</button></div><label>Implemento<select><option value="">Sin especificar</option>${implementsList.map(value => `<option ${entry.implemento === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><div class="day-series">${entry.series.map(s => seriesHTML(s,e)).join('')}</div><button type="button" data-day-series="${escapeHTML(e.id)}">+ serie</button><label>Nota<textarea>${escapeHTML(entry.nota)}</textarea></label></section>`; }).join('')}<button type="button" id="day-add-exercise" class="wide">Agregar otro ejercicio</button><button class="primary wide" type="submit">Guardar día</button></form>`;
   $('#day-routine').onchange = event => { rememberDay(); d.rutina = event.target.value; addRoutineEntries(); renderDay(); };
   $('#day-form').onsubmit = saveDay;
 }
 function parseDaySeries(series) {
-  return series.filter(s => Object.entries(s).some(([field,v]) => field !== 'kg' && String(v ?? '').trim()) || String(s.kg ?? '').trim() && Number(s.kg) !== 0).map(s => {
+  return series.map(s => {
     const parsed = {};
     for (const [field,value] of Object.entries(s)) {
       const raw = String(value ?? '').trim().replace(',','.');
-      if (!raw && field === 'km') continue;
-      const n = Number(raw);
-      if (!raw || !Number.isFinite(n) || n < 0 || (['reps','min'].includes(field) && n <= 0)) throw new Error('Completá las series con números válidos y positivos (kg puede ser 0).');
+      if (!raw) continue;
+      let n = Number(raw);
+      if (field === 'seg' && raw.includes(':')) {
+        if (!/^\d+:[0-5]\d(?:\.\d+)?$/.test(raw)) throw new Error('Tiempo inválido. Usá segundos o m:ss.');
+        const [min,sec] = raw.split(':').map(Number); n = min*60+sec;
+      }
+      if (!Number.isFinite(n) || n < 0) throw new Error('Completá las series con números válidos mayores o iguales a 0.');
       parsed[field] = n;
     }
     return parsed;
-  });
+  }).filter(s => Object.keys(s).length);
 }
 async function persistDay(d) {
   const payloads = d.entries.map(entry => {
@@ -283,13 +299,14 @@ async function persistDay(d) {
     const series = parseDaySeries(entry.series);
     if (entry.implemento && !implementsList.includes(entry.implemento)) throw new Error('Elegí un implemento válido.');
     return {...entry,user_id:d.owner,fecha:d.fecha,series,implemento:e?.grupo === 'cardio' ? null : entry.implemento || null};
-  }).filter(entry => entry.series.length);
+  });
   for (const entry of payloads) {
     // Releer por fecha permite reintentar después de un guardado parcial sin duplicar registros.
     const existing = check(await db.from('registros').select('id').eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',entry.ejercicio));
     const payload = {user_id:d.owner,fecha:d.fecha,ejercicio:entry.ejercicio,implemento:entry.implemento,series:entry.series,nota:entry.nota.trim()};
     check(await (existing.length ? db.from('registros').update(payload).eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',entry.ejercicio) : db.from('registros').insert(payload)));
   }
+  for (const id of d.removed || []) check(await db.from('registros').delete().eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',id));
   if (d.fue === null) check(await db.from('dias').delete().eq('user_id',d.owner).eq('fecha',d.fecha));
   else check(await db.from('dias').upsert({user_id:d.owner,fecha:d.fecha,fue:d.fue,rutina:d.rutina || null,comentario:d.comentario.trim()},{onConflict:'user_id,fecha'}));
 }
@@ -314,6 +331,7 @@ async function handleRoutineDayClick(button) {
   if (data.day) { location.hash = `#dia/${data.day}`; return true; }
   if (data.attendance) { rememberDay(); dayDraft.fue = data.attendance === 'true'; renderDay(); return true; }
   if (button.id === 'clear-attendance') { rememberDay(); dayDraft.fue = null; renderDay(); return true; }
+  if (data.dayRemove) { rememberDay(); dayDraft.entries = dayDraft.entries.filter(e => e.ejercicio !== data.dayRemove); dayDraft.removed = [...new Set([...(dayDraft.removed || []),data.dayRemove])]; renderDay(); return true; }
   if (data.daySeries) { rememberDay(); dayDraft.entries.find(e => e.ejercicio === data.daySeries).series.push({}); renderDay(); return true; }
   if (button.id === 'day-add-exercise' || data.routineAdd) { rememberDay(); selectionTarget = data.routineAdd ? {type:'routine',id:data.routineAdd} : {type:'day'}; location.hash = '#registrar'; return true; }
   if (button.id === 'cancel-selection') { const target = selectionTarget; selectionTarget = null; location.hash = target.type === 'day' ? `#dia/${dayDraft.fecha}` : '#rutinas'; return true; }
@@ -342,7 +360,7 @@ document.addEventListener('click', async event => {
     else if (button.dataset.exercise && selectionTarget) { await selectExercise(button.dataset.exercise); }
     else if (button.dataset.exercise) location.hash = `#ejercicio/${encodeURIComponent(button.dataset.exercise)}`;
     else if (button.dataset.record) { const r = [...monthRows,...exerciseRows].find(r => r.id === button.dataset.record); if (r) { const hash = `#ejercicio/${encodeURIComponent(r.ejercicio)}/${r.id}`; if (location.hash === hash) await route(); else location.hash = hash; } }
-    else if (button.id === 'add-series' || button.id === 'copy-series') { const last = [...document.querySelectorAll('.series')].at(-1); const s = {}; if (button.id === 'copy-series') last.querySelectorAll('input').forEach(i => s[i.dataset.field] = i.value); $('#series').insertAdjacentHTML('beforeend',seriesHTML(s)); numberSeries(); }
+    else if (button.id === 'add-series' || button.id === 'copy-series') { const last = [...document.querySelectorAll('.series')].at(-1); const s = {}; if (button.id === 'copy-series') last?.querySelectorAll('input').forEach(i => s[i.dataset.field] = i.value); $('#series').insertAdjacentHTML('beforeend',seriesHTML(s)); numberSeries(); }
     else if (button.hasAttribute('data-remove')) { button.closest('.series').remove(); if ($('#day-form')) rememberDay(); else numberSeries(); }
     else if (button.id === 'toggle-image' && current.img2) { const img = button.querySelector('img'); img.setAttribute('src',img.getAttribute('src') === current.img ? current.img2 : current.img); }
     else if (button.id === 'rename' || button.id === 'reset-name') {
@@ -367,6 +385,7 @@ document.addEventListener('click', async event => {
       if (!confirm('¿Borrar este registro? No se puede recuperar.')) return;
       busy = true; check(await db.from('registros').delete().eq('id',editing.id)); if (version === routeVersion) { drafts.delete(`${renderedUser}:${renderedHash}`); renderedHash = undefined; location.hash = '#mes'; }
     } else if (button.id === 'logout') {
+      if (!confirm('¿Cerrar sesión?')) return;
       busy = true; check(await db.auth.signOut()); drafts.clear(); dayDrafts.clear(); selectionTarget = null; dayDraft = null; user = null; settings = {nombres:{},propios:[],rutinas:[]}; monthRows = exerciseRows = []; current = editing = null; login();
     }
   } catch (error) { fail(error); } finally { busy = false; }
