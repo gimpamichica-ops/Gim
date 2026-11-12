@@ -3,6 +3,9 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import vm from 'node:vm';
+import {randomUUID} from 'node:crypto';
+const localData = new Map();
+const localStorage = {getItem:k=>localData.get(k) ?? null,setItem:(k,v)=>localData.set(k,v)};
 const root = new URL('../public/',import.meta.url);
 const read = path => readFileSync(new URL(path,root),'utf8');
 const exists = path => assert.ok(existsSync(new URL(path,root)),`Falta ${path}`);
@@ -23,7 +26,7 @@ for (const icon of JSON.parse(read('manifest.webmanifest')).icons) {
 }
 const elements = new Map();
 const element = selector => { if (!elements.has(selector)) elements.set(selector,{innerHTML:'',textContent:'',hidden:false}); return elements.get(selector); };
-const context = vm.createContext({console,URL,Date,Set,Map,Number,String,Math,JSON,navigator:{},location:{hash:'#mes'},document:{querySelector:element,querySelectorAll:()=>[],addEventListener(){}},window:{GYM_CONFIG:{supabaseUrl:'PENDIENTE',supabaseKey:'PENDIENTE'},addEventListener(){},scrollTo(){}},fetch:async()=>({ok:true,json:async()=>catalog})});
+const context = vm.createContext({localStorage,crypto:{randomUUID},console,URL,Date,Set,Map,Number,String,Math,JSON,navigator:{},location:{hash:'#mes'},document:{getElementById:()=>element('#pending-status'),querySelector:element,querySelectorAll:()=>[],addEventListener(){}},window:{GYM_CONFIG:{supabaseUrl:'PENDIENTE',supabaseKey:'PENDIENTE'},addEventListener(){},scrollTo(){}},fetch:async()=>({ok:true,json:async()=>catalog})});
 vm.runInContext(read('app.js').replace(/start\(\);\s*$/,''),context);
 const run = code => vm.runInContext(code,context);
 assert.equal(run(`escapeHTML('<img onerror="x">')`),'&lt;img onerror=&quot;x&quot;&gt;');
@@ -41,17 +44,17 @@ assert.ok(element('#app').innerHTML.includes('Paso 2 · Estás acá'));
 run(`renderPicker()`); assert.ok(element('#picker-results').innerHTML.includes('Piernas'));
 run(`pickerGroup='piernas'; renderPickerResults()`); assert.ok(element('#picker-results').innerHTML.includes('Sentadilla'));
 // A failed write must leave both the form draft and the current route intact.
-run(`current={id:'test',grupo:'piernas'}; db={from:()=>({insert:async()=>({error:new Error('sin conexión')})})}`);
+run(`user={id:'usuario'}; current={id:'test',grupo:'piernas'}; db={from:()=>({upsert:async()=>({error:new Error('sin conexión')})})}`);
 const submit = {disabled:false};
 const inputs = [{value:'40,5',dataset:{field:'kg'}},{value:'10',dataset:{field:'reps'}}];
 context.document.querySelectorAll = selector => selector === '.series' ? [{querySelectorAll:()=>inputs}] : [];
 context.testForm = {fecha:{value:'2026-10-28'},nota:{value:'Mi nota'},querySelector:()=>submit};
 await run('saveRecord({preventDefault(){},target:testForm})');
 assert.equal(context.testForm.nota.value,'Mi nota'); assert.equal(inputs[0].value,'40,5'); assert.equal(context.location.hash,'#mes'); assert.equal(submit.disabled,false);
-assert.ok(element('#message').textContent.includes('sin conexión'));
+assert.ok(element('#message').textContent.includes('sin conexi')); assert.equal(run('pending().length'),0);
 let written;
 context.capture = payload => { written = payload; return {error:null}; };
-run(`db={from:()=>({insert:async payload=>capture(payload),update:payload=>({eq:async()=>capture(payload)})})}`);
+run(`db={from:()=>({upsert:async payload=>capture(payload),update:payload=>({eq:async()=>capture(payload)})})}`);
 await run('saveRecord({preventDefault(){},target:testForm})');
 assert.equal(written.series[0].kg,40.5); assert.equal(written.series[0].reps,10);
 assert.equal(context.location.hash,'#mes');
@@ -76,7 +79,7 @@ context.scrolls = 0;
 context.window.scrollTo = (x,y) => { assert.equal(x,0); assert.equal(y,0); context.scrolls++; };
 context.pending = [];
 context.deferred = () => new Promise(resolve => context.pending.push(resolve));
-run("user={id:'usuario'}; db={from:table=>table === 'dias' ? {select:()=>({eq:()=>({order:async()=>({data:[]})})})} : ({select:()=>({gte:()=>({lt:()=>({order:()=>({order:()=>deferred()})})})})})}; location.hash='#mes'");
+run("user={id:'usuario'}; db={from:table=>table === 'dias' ? {select:()=>({eq:()=>({order:async()=>({data:[]})})})} : ({select:()=>({eq:()=>({order:()=>({order:()=>deferred()})})})})}; location.hash='#mes'");
 const oldRoute = run('route()'); await new Promise(resolve=>setImmediate(resolve));
 context.location.hash='#registrar'; await run('route()');
 const picker = element('#app').innerHTML;
@@ -96,7 +99,7 @@ assert.ok(!element('#picker-results').innerHTML.includes('<svg onload'));
 assert.ok(element('#picker-results').innerHTML.includes('&lt;svg onload'));
 // A completed save must not redirect the user away from their new route.
 inputs[0].value='40';
-run("editing=null; current={id:'test',grupo:'piernas'}; db={from:()=>({insert:()=>deferred()})}");
+run("editing=null; current={id:'test',grupo:'piernas'}; db={from:()=>({upsert:()=>deferred()})}");
 const saving = run('saveRecord({preventDefault(){},target:testForm})');
 context.location.hash='#abru'; await run('route()');
 context.pending.shift()({error:null}); await saving;
@@ -154,7 +157,7 @@ assert.ok(!separated.includes('500 kg × reps'));
 elements.delete('#record-form');
 context.testForm.querySelector=selector=>selector.includes('implemento') ? {value:'Mancuerna'} : submit;
 context.document.querySelectorAll=selector=>selector==='.series' ? [{querySelectorAll:()=>inputs}] : [];
-run("editing=null; current={id:'test',grupo:'pecho'}; db={from:()=>({insert:async payload=>capture(payload)})}");
+run("editing=null; current={id:'test',grupo:'pecho'}; db={from:()=>({upsert:async payload=>capture(payload)})}");
 await run('saveRecord({preventDefault(){},target:testForm})'); assert.equal(written.implemento,'Mancuerna');
 context.testForm.querySelector=selector=>selector.includes('implemento') ? {value:'inválido'} : submit;
 written=undefined; await run('saveRecord({preventDefault(){},target:testForm})'); assert.equal(written,undefined);
@@ -236,7 +239,7 @@ const monthly=run("progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:1
 assert.ok(monthly.includes('30 min')); assert.ok(!monthly.includes('45 min')); assert.ok(monthly.includes('2 km'));
 assert.equal(run("seriesHTML({seg:90},{grupo:'abdomen'})").includes('value="1:30"'),true);
 assert.ok(!run("seriesHTML({},{grupo:'abru'})").includes('required'));
-assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v7'"));
+assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v8'"));
 console.log('OK · series opcionales, tiempo, métricas independientes y mejor día del mes.');
 
 assert.equal(run("parseDaySeries([{seg:formatTime(60.5)}])[0].seg"),60.5);
@@ -274,3 +277,55 @@ await assert.rejects(run("persistDay({owner:'usuario',fecha:'2026-10-28',entries
 let messageScrolled=false; element('#message').scrollIntoView=()=>{messageScrolled=true};
 run("message('Revisá la serie')"); assert.equal(messageScrolled,true);
 console.log('OK · filtros de implemento, errores al quitar y mensaje visible.');
+// Queue retries retain the UUID even if the server committed before the connection dropped.
+run("user={id:'offline-user'}; storeQueue([]); settings.propios=[{id:'volume-test',grupo:'pecho',musculos:['chest'],secundarios:['triceps']}]");
+const offlineRecords = new Map(), operationOrder = [];
+let loseReply = true;
+context.queueDb = {from(){return {upsert:async data=>{offlineRecords.set(data.id,data);operationOrder.push(data.id);return loseReply ? {error:{message:'Failed to fetch'}} : {error:null}},delete(){return this},eq:async(k,id)=>{offlineRecords.delete(id);operationOrder.push('delete');return {error:null}}}}};
+run('db=queueDb');
+await run("writeOperation({id:'op1',kind:'record',data:{id:'stable-id',user_id:user.id,ejercicio:'volume-test',fecha:'2026-11-09',series:[{kg:0,reps:10}],nota:''}})");
+assert.equal(run('pending().length'),1);
+assert.equal(run("overlayRows([],'registros')[0].id"),'stable-id');
+assert.ok(element('#pending-status').innerHTML.includes('1 cambios'));
+run("user={id:'other-user'}");assert.equal(run('pending().length'),0);
+run("user={id:'offline-user'}");loseReply=false;
+await run('flushQueue()');await run('flushQueue()');
+assert.equal(offlineRecords.size,1);assert.equal(run('pending().length'),0);
+assert.deepEqual(operationOrder,['stable-id','stable-id']);
+assert.equal(run("overlayRows(JSON.parse(localStorage.getItem(storageKey('records'))),'registros').length"),1);
+// Network reads recover the last account-specific snapshot.
+context.failedRead = Promise.resolve({error:{message:'TypeError: Failed to fetch'}});
+const cachedRows = await run("cachedRead('records',failedRead)");assert.equal(cachedRows[0].id,'stable-id');
+// Permanent errors stop at the first item and remain actionable until discarded.
+run("storeQueue([{id:'blocked',kind:'record',data:{id:'x'}},{id:'later',kind:'delete',data:{id:'stable-id'}}]); db={from:()=>({upsert:async()=>({error:{code:'42501',message:'Sin permiso'}})})}");
+await run('flushQueue()');assert.equal(run('pending()[0].error'),'Sin permiso');
+await run('flushQueue()');assert.equal(run('pending().length'),2);
+assert.ok(element('#pending-status').innerHTML.includes('data-discard="blocked"'));
+run("storeQueue(pending().filter(o=>o.id !== 'blocked')); db=queueDb");await run('flushQueue()');
+assert.equal(offlineRecords.size,0);assert.equal(run('pending().length'),0);
+// Monday to Sunday inclusive, with secondary muscles at half weight and unknown exercises ignored.
+const volume = run("weeklyVolume([{ejercicio:'volume-test',fecha:'2026-11-08',series:[{},{}]},{ejercicio:'volume-test',fecha:'2026-11-09',series:[{},{}]},{ejercicio:'volume-test',fecha:'2026-11-15',series:[{}]},{ejercicio:'volume-test',fecha:'2026-11-16',series:[{}]},{ejercicio:'unknown',fecha:'2026-11-10',series:[{}]}],'2026-11-15')");
+assert.equal(volume.start,'2026-11-09');assert.equal(volume.end,'2026-11-16');
+assert.equal(volume.totals.chest,3);assert.equal(volume.totals.triceps,1.5);assert.equal(volume.totals.calves,0);
+assert.ok(run('muscleMap({volume:{chest:3,triceps:1.5}})').includes('hsl(18 90%'));
+assert.deepEqual(JSON.parse(run('JSON.stringify(repeatSeries([]))')),{});
+for (const series of [[{kg:'0',reps:'8',seg:'1:30'}],[{min:'20',km:'2,5'}]]) {
+  context.repeatedInput=series;
+  const repeated=run('repeatSeries(repeatedInput)');assert.deepEqual({...repeated},series[0]);
+  repeated.extra=1;assert.equal(series[0].extra,undefined);
+}
+assert.ok(read('app.js').includes('+ Repetir serie'));
+console.log('OK - cola durable por cuenta, respuesta perdida, reintento idempotente, borrados, errores permanentes, cache offline, semana local y repetir series.');
+// An expired session whose refresh cannot reach the server still opens the cached shell.
+localStorage.setItem('gym:session-user',JSON.stringify({id:'offline-user',email:'offline@example.test'}));
+const offlineQuery={select(){return this},eq(){return this},order(){return this},maybeSingle(){return this},then(resolve){resolve({error:{message:'Failed to fetch'}})}};
+context.startDb={auth:{getSession:async()=>({error:{message:'Failed to fetch'}}),onAuthStateChange(){}},from:()=>offlineQuery};
+context.window.GYM_CONFIG={supabaseUrl:'https://example.test',supabaseKey:'public-test'};
+context.window.supabase={createClient:()=>context.startDb};
+context.location.hash='#resumen';
+await run('start()');
+assert.equal(run('user.id'),'offline-user');
+assert.ok(element('#app').innerHTML.includes('Esta semana'));
+assert.ok(element('#message').textContent.includes('Sin se'));
+assert.ok(!element('#app').innerHTML.includes('No pudimos iniciar'));
+console.log('OK - arranque con sesion persistida y red caida.');

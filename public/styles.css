@@ -8,3 +8,7 @@
 .day-title::first-letter{text-transform:uppercase}
 
 .series{grid-template-columns:14px repeat(3,minmax(0,1fr)) 36px;gap:5px}.series.cardio-series{grid-template-columns:14px repeat(2,minmax(0,1fr)) 36px}.series input{padding:8px 5px}.series button{padding:5px;min-width:0}.compact .row{flex-wrap:wrap}.tabs [aria-pressed="true"]{background:#193e75;border-color:#60a5fa}nav{gap:4px;padding-left:8px;padding-right:8px}.entry[href]{color:var(--text);text-decoration:none}
+
+#pending-status{max-width:760px;margin:auto;padding:8px 20px;color:var(--muted)}.weekly-list{padding-left:20px;line-height:1.8}#copy-series,[data-day-series]{min-height:52px}
+
+#pending-status>small{display:block;font-size:12px;line-height:1.5}

@@ -30,23 +30,98 @@ function formatTime(n) { return n < 60 ? n+' s' : Math.floor(n/60)+':'+(n%60 < 1
 function formatSeries(row,e) { return row.series.map(s => e?.grupo === 'cardio' ? [s.min !== undefined ? s.min+' min' : '',s.km !== undefined ? s.km+' km' : ''].filter(Boolean).join(' · ') : [[s.kg !== undefined ? s.kg+' kg' : '',s.reps !== undefined ? s.reps+' '+(e?.unidad || 'reps') : ''].filter(Boolean).join(' × '),s.seg !== undefined ? formatTime(s.seg) : ''].filter(Boolean).join(' · ')).filter(Boolean).join(' / '); }
 function image(e, cls = '') { return e.img ? `<img class="${cls}" src="${escapeHTML(e.img)}" alt="${escapeHTML(name(e))}" loading="lazy">` : `<div class="initial">${escapeHTML(name(e).charAt(0).toUpperCase())}</div>`; }
 function login() {
+  pendingStatus();
   $('#nav').hidden = $('#settings-link').hidden = true;
   $('#app').innerHTML = `<section class="login"><div class="login-logo" aria-hidden="true">GYM<span>&bull;</span></div><p class="eyebrow">Tu espacio de entrenamiento</p><h1>Un día más.<br>Un poco más fuerte.</h1><p class="muted">Entrá para guardar tus entrenamientos y ver cómo avanzás.</p><form id="login"><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Contraseña<input type="password" name="password" autocomplete="current-password" required></label><button class="primary wide">Entrar <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></form></section>`;
   $('#login').onsubmit = async event => {
     event.preventDefault(); const form = event.target; const button = form.querySelector('button'); button.disabled = true; message();
-    try { const result = check(await db.auth.signInWithPassword({email:form.email.value.trim(),password:form.password.value})); user = result.user; await loadSettings(); await route(); }
+    try { const result = check(await db.auth.signInWithPassword({email:form.email.value.trim(),password:form.password.value})); user = result.user; localStorage.setItem('gym:session-user',JSON.stringify(user)); await loadSettings(); await flushQueue(); await route(); }
     catch (error) { fail(error); } finally { button.disabled = false; }
   };
 }
+const networkError = e => !e.code && !e.status && /fetch|network|offline|load failed/i.test(e.message || '');
+const storageKey = kind => 'gym:'+user.id+':'+kind;
+const pending = () => JSON.parse(localStorage.getItem(storageKey('queue')) || '[]');
+function storeQueue(items) { localStorage.setItem(storageKey('queue'),JSON.stringify(items)); pendingStatus(); }
+function pendingStatus() {
+  let el = document.getElementById('pending-status');
+  if (!el) { el = document.createElement('aside'); el.id = 'pending-status'; document.querySelector('header').after(el); }
+  const items = user ? pending() : [];
+  el.hidden = !items.length;
+  el.innerHTML = '<small>'+items.length+' cambios pendientes de subir</small><small>Guardado en el celular. Se sube solo cuando vuelva la señal.</small>'+items.filter(o => o.error).map(o => '<p>'+escapeHTML(o.error)+' <button data-discard="'+escapeHTML(o.id)+'">Descartar</button></p>').join('');
+}
+async function cachedRead(key,query) {
+  const storage = storageKey(key);
+  try { const data = check(await query); localStorage.setItem(storage,JSON.stringify(data)); return data; }
+  catch (e) { if (!networkError(e)) throw e; message('Sin señal. Mostramos lo guardado en este celular.'); return JSON.parse(localStorage.getItem(storage) || (key === 'settings' ? 'null' : '[]')); }
+}
+async function applyOperation(op) {
+  if (op.kind === 'day') return persistDay(op.data);
+  if (op.kind === 'delete') return check(await db.from('registros').delete().eq('id',op.data.id));
+  return check(await db.from('registros').upsert(op.data,{onConflict:'id'}));
+}
+let syncing = false;
+async function flushQueue() {
+  if (navigator.locks) return navigator.locks.request('gym-sync',drainQueue);
+  return drainQueue();
+}
+async function drainQueue() {
+  if (!user || syncing) return;
+  const owner = user.id; syncing = true;
+  try {
+    while (pending().length) {
+      const op = pending()[0];
+      if (op.error || user?.id !== owner) break;
+      try { await applyOperation(op); if (user?.id !== owner) break; for (const [table,key] of [['registros','records'],['dias','days']]) { const cacheKey = storageKey(key); localStorage.setItem(cacheKey,JSON.stringify(overlayRows(JSON.parse(localStorage.getItem(cacheKey) || '[]'),table,[op]))); } storeQueue(pending().filter(o => o.id !== op.id)); }
+      catch (e) { if (user?.id === owner && !networkError(e)) storeQueue(pending().map(o => o.id === op.id ? {...o,error:e.message || 'Revisá los datos y permisos.'} : o)); break; }
+    }
+  } finally { syncing = false; }
+}
+async function writeOperation(op) {
+  storeQueue([...pending(),op]);
+  await flushQueue();
+  const failed = pending().find(o => o.id === op.id);
+  if (failed?.error) { storeQueue(pending().filter(o => o.id !== op.id)); throw new Error(failed.error); }
+  if (failed) message('Guardado en el celular. Se sube solo cuando vuelva la señal.');
+}
+function overlayRows(rows,table,operations = pending()) {
+  let result = rows || [];
+  for (const op of operations) {
+    const d = op.data;
+    if (table === 'registros' && op.kind === 'record') result = [...result.filter(r => r.id !== d.id),d];
+    if (table === 'registros' && op.kind === 'delete') result = result.filter(r => r.id !== d.id);
+    if (op.kind === 'day') {
+      if (table === 'dias') { result = result.filter(r => r.fecha !== d.fecha); if (d.fue !== null) result.push({...d,user_id:d.owner}); }
+      else { result = result.filter(r => r.fecha !== d.fecha || ![...d.entries.map(e => e.ejercicio),...(d.removed || [])].includes(r.ejercicio)); result.push(...d.entries.map(e => ({...e,id:e.id || 'pending-'+d.fecha+'-'+e.ejercicio,fecha:d.fecha,user_id:d.owner,series:parseDaySeries(e.series)}))); }
+    }
+  }
+  return result;
+}
+const repeatSeries = series => ({...(series.at(-1) || {})});
+let weekOffset = 0;
+const muscleNames = {neck:'Cuello',shoulders:'Hombros',chest:'Pecho',biceps:'Bíceps',triceps:'Tríceps',forearms:'Antebrazos',abdominals:'Abdominales',abductors:'Abductores',adductors:'Aductores',quadriceps:'Cuádriceps',calves:'Gemelos',traps:'Trapecios',lats:'Dorsales','middle back':'Espalda media','lower back':'Espalda baja',glutes:'Glúteos',hamstrings:'Isquiotibiales'};
+function weeklyVolume(rows,date = today()) {
+  const start = dateShift(date,-((new Date(date+'T12:00:00').getDay()+6)%7)), end = dateShift(start,7);
+  const totals = Object.fromEntries(Object.keys(muscleNames).map(k => [k,0]));
+  for (const row of rows.filter(r => r.fecha >= start && r.fecha < end)) {
+    const e = exercises().find(e => e.id === row.ejercicio);
+    for (const key of Object.keys(totals)) totals[key] += row.series.length*((e?.musculos || []).includes(key) ? 1 : (e?.secundarios || []).includes(key) ? 0.5 : 0);
+  }
+  return {start,end,totals};
+}
+function weeklyHTML(rows) {
+  const {start,end,totals} = weeklyVolume(rows,dateShift(today(),weekOffset*7));
+  return '<section class="panel"><div class="row between"><button data-week="-1" aria-label="Semana anterior">‹</button><h2>'+(!weekOffset ? 'Esta semana' : 'Semana anterior')+'</h2><button data-week="1" aria-label="Semana siguiente" '+(!weekOffset ? 'disabled' : '')+'>›</button></div><p>'+start+' — '+dateShift(end,-1)+'</p>'+muscleMap({volume:totals})+'<ul class="weekly-list">'+Object.entries(totals).sort((a,b) => b[1]-a[1]).map(([k,v]) => '<li>'+muscleNames[k]+': <strong>'+v+'</strong>'+(!v ? ' · sin trabajar esta semana' : '')+'</li>').join('')+'</ul></section>';
+}
 async function loadSettings() {
   const owner = user;
-  const data = check(await db.from('ajustes').select('nombres,propios,rutinas').eq('user_id',owner.id).maybeSingle());
+  const data = await cachedRead('settings',db.from('ajustes').select('nombres,propios,rutinas').eq('user_id',owner.id).maybeSingle());
   if (user !== owner) return;
   settings = {nombres:data?.nombres || {},propios:data?.propios || [],rutinas:data?.rutinas || []};
 }
 async function saveSettings(next) {
   const owner = user;
-  check(await db.from('ajustes').upsert({user_id:owner.id,...next})); if (user === owner) settings = next;
+  check(await db.from('ajustes').upsert({user_id:owner.id,...next})); if (user === owner) { settings = next; localStorage.setItem(storageKey('settings'),JSON.stringify(next)); }
 }
 async function route() {
   const version = ++routeVersion;
@@ -62,7 +137,7 @@ async function route() {
       const [,id,recordId] = hash.split('/');
       const e = exercises().find(item => item.id === decodeURIComponent(id));
       if (!e) throw new Error('Ese ejercicio no existe.');
-      const rows = check(await db.from('registros').select('*').eq('ejercicio',e.id).order('fecha',{ascending:false}).order('creado',{ascending:false}));
+      const rows = overlayRows(await cachedRead('records',db.from('registros').select('*').eq('user_id',user.id).order('fecha',{ascending:false}).order('creado',{ascending:false})),'registros').filter(r => r.ejercicio === e.id);
       if (version !== routeVersion) return;
       current = e; exerciseRows = rows; editing = recordId ? rows.find(row => row.id === recordId) : null;
       if (recordId && !editing) throw new Error('Ese registro ya no existe.');
@@ -80,13 +155,14 @@ async function route() {
 async function renderMonth(version) {
   const [year,m] = month.split('-').map(Number);
   const end = new Date(year,m,1); const next = `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-01`;
-  const attendance = check(await db.from('dias').select('*').eq('user_id',user.id).order('fecha',{ascending:false}));
-  const rows = check(await db.from('registros').select('*').gte('fecha',`${month}-01`).lt('fecha',next).order('fecha',{ascending:false}).order('creado',{ascending:false}));
+  const attendance = overlayRows(await cachedRead('days',db.from('dias').select('*').eq('user_id',user.id).order('fecha',{ascending:false})),'dias');
+  const allRows = overlayRows(await cachedRead('records',db.from('registros').select('*').eq('user_id',user.id).order('fecha',{ascending:false}).order('creado',{ascending:false})),'registros');
+  const rows = allRows.filter(r => r.fecha >= `${month}-01` && r.fecha < next);
   if (version !== routeVersion) return;
   monthRows = rows;
   const marked = attendance.filter(d => d.fecha.startsWith(month));
   const days = [...new Set([...rows.map(row => row.fecha),...marked.map(d => d.fecha)])].sort().reverse();
-  $('#app').innerHTML = `<p class="eyebrow">Tu entrenamiento, día a día</p><div class="row between month"><button data-month="-1" aria-label="Mes anterior">‹</button><h1>${escapeHTML(monthLabel(month))}</h1><button data-month="1" aria-label="Mes siguiente">›</button></div><a class="primary button wide" href="#registrar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</a>${summaryHTML(attendance)}<p class="muted">${rows.length} registro${rows.length === 1 ? '' : 's'} · ${days.length} día${days.length === 1 ? '' : 's'} de movimiento</p>${days.length ? days.map(day => `<section class="day"><div class="dayhead"><span class="date-badge"><strong>${Number(day.slice(-2))}</strong><span>${new Date(`${day}T12:00:00`).toLocaleDateString('es-AR',{weekday:'short'})}</span></span><h2><button data-day="${day}">${marked.find(d => d.fecha === day)?.fue === false ? "No fui" : "Tu entrenamiento"}</button></h2></div>${marked.find(d => d.fecha === day)?.comentario ? `<p>${escapeHTML(marked.find(d => d.fecha === day).comentario)}</p>` : ""}${rows.filter(row => row.fecha === day).map(row => { const e = exercises().find(e => e.id === row.ejercicio); return `<button class="entry" data-record="${escapeHTML(row.id)}"><div><strong>${escapeHTML(e ? name(e) : row.ejercicio)}${row.implemento ? ` · ${escapeHTML(row.implemento)}` : ''}</strong><small>${row.series.length} serie${row.series.length === 1 ? '' : 's'}</small><small>${escapeHTML(formatSeries(row,e))}</small>${row.nota ? `<small>${escapeHTML(row.nota)}</small>` : ''}</div><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>`; }).join('')}</section>`).join('') : '<div class="panel empty">Todavía no hay entrenamientos este mes.<br>Tu próximo paso empieza con un registro.</div>'}`;
+  $('#app').innerHTML = `<p class="eyebrow">Tu entrenamiento, día a día</p><div class="row between month"><button data-month="-1" aria-label="Mes anterior">‹</button><h1>${escapeHTML(monthLabel(month))}</h1><button data-month="1" aria-label="Mes siguiente">›</button></div><a class="primary button wide" href="#registrar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Registrar</a>${summaryHTML(attendance)}${weeklyHTML(allRows)}<p class="muted">${rows.length} registro${rows.length === 1 ? '' : 's'} · ${days.length} día${days.length === 1 ? '' : 's'} de movimiento</p>${days.length ? days.map(day => `<section class="day"><div class="dayhead"><span class="date-badge"><strong>${Number(day.slice(-2))}</strong><span>${new Date(`${day}T12:00:00`).toLocaleDateString('es-AR',{weekday:'short'})}</span></span><h2><button data-day="${day}">${marked.find(d => d.fecha === day)?.fue === false ? "No fui" : "Tu entrenamiento"}</button></h2></div>${marked.find(d => d.fecha === day)?.comentario ? `<p>${escapeHTML(marked.find(d => d.fecha === day).comentario)}</p>` : ""}${rows.filter(row => row.fecha === day).map(row => { const e = exercises().find(e => e.id === row.ejercicio); return `<button class="entry" data-record="${escapeHTML(row.id)}"><div><strong>${escapeHTML(e ? name(e) : row.ejercicio)}${row.implemento ? ` · ${escapeHTML(row.implemento)}` : ''}</strong><small>${row.series.length} serie${row.series.length === 1 ? '' : 's'}</small><small>${escapeHTML(formatSeries(row,e))}</small>${row.nota ? `<small>${escapeHTML(row.nota)}</small>` : ''}</div><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>`; }).join('')}</section>`).join('') : '<div class="panel empty">Todavía no hay entrenamientos este mes.<br>Tu próximo paso empieza con un registro.</div>'}`;
 }
 function renderPicker() {
   $('#app').innerHTML = `<p class="eyebrow">Sumá un entrenamiento</p><h1>¿Qué entrenás hoy?</h1><label class="search">Buscar en todos los grupos<input id="exercise-search" type="search" placeholder="Nombre del ejercicio" autocomplete="off"></label><div id="picker-results"></div>`;
@@ -151,7 +227,7 @@ function muscleMap(e) {
     ['calves','M32 171Q27 183 33 196L37 201 42 194 42 173Z M68 171Q73 183 67 196L63 201 58 194 58 173Z']
   ];
   const body = 'M41 35L40 41Q23 39 19 54L14 85 9 119Q8 126 14 128L20 125 29 94 33 77 36 96 30 117Q26 136 28 160L30 172 30 199 27 211Q32 215 40 211L43 184 47 163 50 144 53 163 57 184 60 211Q68 215 73 211L70 199 70 172 72 160Q74 136 70 117L64 96 67 77 71 94 80 125 86 128Q92 126 91 119L86 85 81 54Q77 39 60 41L59 35Z';
-  const figure = (regions,x) => '<g transform="translate('+x+' 0)"><g fill="#c9d1cc" stroke="#8a968f"><ellipse cx="50" cy="21" rx="12" ry="15"/><path d="'+body+'"/></g>'+regions.map(([muscle,path]) => '<path class="region '+((e.musculos || []).includes(muscle) ? 'primary-muscle' : (e.secundarios || []).includes(muscle) ? 'secondary' : '')+'" d="'+path+'"><title>'+muscle+'</title></path>').join('')+'</g>';
+  const figure = (regions,x) => '<g transform="translate('+x+' 0)"><g fill="#c9d1cc" stroke="#8a968f"><ellipse cx="50" cy="21" rx="12" ry="15"/><path d="'+body+'"/></g>'+regions.map(([muscle,path]) => '<path class="region '+((e.musculos || []).includes(muscle) ? 'primary-muscle' : (e.secundarios || []).includes(muscle) ? 'secondary' : '')+'"'+(e.volume ? ' style="fill:'+(e.volume[muscle] ? 'hsl(18 90% '+(75-40*e.volume[muscle]/Math.max(1,...Object.values(e.volume)))+'%)' : '#b2bdb6')+'"' : '')+' d="'+path+'"><title>'+muscle+'</title></path>').join('')+'</g>';
   return '<section class="panel muscles"><h3>Músculos que trabajás</h3><svg viewBox="0 0 210 230" role="img" aria-label="Mapa muscular de frente y espalda">'+figure(front,0)+figure(back,110)+'<g fill="#a8b6ce" font-size="9" text-anchor="middle"><text x="50" y="226">FRENTE</text><text x="160" y="226">ESPALDA</text></g></svg><p class="legend"><span><span class="swatch primary-swatch"></span>Principal</span><span><span class="swatch secondary-swatch"></span>Secundario</span></p>'+(!(e.musculos || []).length ? '<small>Sin músculos especificados para este ejercicio.</small>' : '')+'</section>';
 }
 
@@ -172,7 +248,7 @@ function progress(e,rows,period = 'day') {
   return html || '<p class="muted">Tu progreso va a aparecer cuando registres alguna métrica.</p>';
 }
 async function renderProgress(id,version) {
-  const rows = check(await db.from('registros').select('*').eq('user_id',user.id).order('fecha',{ascending:false}));
+  const rows = overlayRows(await cachedRead('records',db.from('registros').select('*').eq('user_id',user.id).order('fecha',{ascending:false})),'registros');
   if (version !== routeVersion) return;
   if (!id) {
     $('#app').innerHTML = '<h1>Progreso</h1>'+([...new Set(rows.map(r => r.ejercicio))].map(id => { const e = exercises().find(e => e.id === id) || {id,nombre:id}, records = rows.filter(r => r.ejercicio === id); return '<a class="entry search-result" href="#progreso/'+encodeURIComponent(id)+'">'+image(e)+'<div><strong>'+escapeHTML(name(e))+'</strong><small>'+records.length+' registro'+(records.length === 1 ? '' : 's')+' · '+escapeHTML(records[0].fecha)+'</small></div></a>'; }).join('') || '<p class="muted">Todavía no hay registros.</p>'); return;
@@ -213,7 +289,7 @@ async function saveRecord(event) {
     if (implemento && !implementsList.includes(implemento)) throw new Error('Elegí un implemento válido.');
     const payload = {implemento,ejercicio:current.id,fecha:form.fecha.value,series,nota:form.nota.value.trim()};
     busy = true; form.querySelector('[type=submit]').disabled = true;
-    check(await (editing ? db.from('registros').update(payload).eq('id',editing.id) : db.from('registros').insert(payload)));
+    await writeOperation({id:crypto.randomUUID(),kind:'record',data:{...payload,id:editing?.id || crypto.randomUUID(),user_id:user.id}});
     drafts.delete(hash);
     if (version === routeVersion) renderedHash = undefined;
     if (version === routeVersion) { month = payload.fecha.slice(0,7); location.hash = '#mes'; }
@@ -257,8 +333,9 @@ async function openDay(date,version) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || dateShift(date,0) !== date) throw new Error('Elegí una fecha válida.');
   const owner = user.id, key = `${owner}:${date}`;
   if (dayDrafts.has(key)) { dayDraft = dayDrafts.get(key); renderDay(); return; }
-  const [daysResult,historyResult] = await Promise.all([db.from('dias').select('*').eq('user_id',owner).eq('fecha',date).maybeSingle(),db.from('registros').select('*').eq('user_id',owner).lte('fecha',date).order('fecha',{ascending:false}).order('creado',{ascending:false})]);
-  const day = check(daysResult), history = check(historyResult);
+  const days = overlayRows(await cachedRead('days',db.from('dias').select('*').eq('user_id',owner).order('fecha',{ascending:false})),'dias');
+  const history = overlayRows(await cachedRead('records',db.from('registros').select('*').eq('user_id',owner).order('fecha',{ascending:false}).order('creado',{ascending:false})),'registros').filter(r => r.fecha <= date);
+  const day = days.find(d => d.fecha === date);
   if (version !== routeVersion) return;
   dayDraft = {owner,fecha:date,fue:day?.fue ?? null,rutina:day?.rutina || '',comentario:day?.comentario || '',entries:history.filter(r => r.fecha === date).filter((r,i,all) => all.findIndex(x => x.ejercicio === r.ejercicio) === i).map(r => ({...r,series:r.series.map(s => ({...s}))}))};
   dayDraft.history = history;
@@ -273,7 +350,7 @@ function addDayEntry(id) {
 function addRoutineEntries() { settings.rutinas.find(r => r.id === dayDraft.rutina)?.ejercicios.forEach(addDayEntry); }
 function renderDay() {
   const d = dayDraft;
-  $('#app').innerHTML = `<a class="button back" href="#resumen">‹ Resumen</a><h1 class="day-title">${escapeHTML(new Date(d.fecha+"T12:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}))}</h1><form id="day-form"><div class="actions"><button type="button" data-attendance="true" aria-pressed="${d.fue === true}" class="${d.fue === true ? 'primary' : ''}">Fui</button><button type="button" data-attendance="false" aria-pressed="${d.fue === false}" class="${d.fue === false ? 'primary' : ''}">No fui</button><button type="button" id="clear-attendance">Borrar marca</button></div><label>Qué día de rutina hice<select id="day-routine"><option value="">Libre</option>${settings.rutinas.map(r => `<option value="${escapeHTML(r.id)}" ${d.rutina === r.id ? 'selected' : ''}>${escapeHTML(r.nombre)}</option>`).join('')}</select></label><label>Comentario del día<textarea name="comentario">${escapeHTML(d.comentario)}</textarea></label><h2>Entrenamiento</h2>${d.entries.map(entry => { const e = exercises().find(e => e.id === entry.ejercicio); if (!e) return ''; return `<section class="panel compact" data-day-exercise="${escapeHTML(e.id)}"><div class="row">${image(e)}<h3>${escapeHTML(name(e))}</h3><button type="button" class="danger" data-day-remove="${escapeHTML(e.id)}">Quitar</button></div><label>Implemento<select><option value="">Sin especificar</option>${implementsList.map(value => `<option ${entry.implemento === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><div class="day-series">${entry.series.map(s => seriesHTML(s,e)).join('')}</div><button type="button" data-day-series="${escapeHTML(e.id)}">+ serie</button><label>Nota<textarea>${escapeHTML(entry.nota)}</textarea></label></section>`; }).join('')}<button type="button" id="day-add-exercise" class="wide">Agregar otro ejercicio</button><button class="primary wide" type="submit">Guardar día</button></form>`;
+  $('#app').innerHTML = `<a class="button back" href="#resumen">‹ Resumen</a><h1 class="day-title">${escapeHTML(new Date(d.fecha+"T12:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}))}</h1><form id="day-form"><div class="actions"><button type="button" data-attendance="true" aria-pressed="${d.fue === true}" class="${d.fue === true ? 'primary' : ''}">Fui</button><button type="button" data-attendance="false" aria-pressed="${d.fue === false}" class="${d.fue === false ? 'primary' : ''}">No fui</button><button type="button" id="clear-attendance">Borrar marca</button></div><label>Qué día de rutina hice<select id="day-routine"><option value="">Libre</option>${settings.rutinas.map(r => `<option value="${escapeHTML(r.id)}" ${d.rutina === r.id ? 'selected' : ''}>${escapeHTML(r.nombre)}</option>`).join('')}</select></label><label>Comentario del día<textarea name="comentario">${escapeHTML(d.comentario)}</textarea></label><h2>Entrenamiento</h2>${d.entries.map(entry => { const e = exercises().find(e => e.id === entry.ejercicio); if (!e) return ''; return `<section class="panel compact" data-day-exercise="${escapeHTML(e.id)}"><div class="row">${image(e)}<h3>${escapeHTML(name(e))}</h3><button type="button" class="danger" data-day-remove="${escapeHTML(e.id)}">Quitar</button></div><label>Implemento<select><option value="">Sin especificar</option>${implementsList.map(value => `<option ${entry.implemento === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><div class="day-series">${entry.series.map(s => seriesHTML(s,e)).join('')}</div><button type="button" data-day-series="${escapeHTML(e.id)}" class="wide">+ Repetir serie</button><label>Nota<textarea>${escapeHTML(entry.nota)}</textarea></label></section>`; }).join('')}<button type="button" id="day-add-exercise" class="wide">Agregar otro ejercicio</button><button class="primary wide" type="submit">Guardar día</button></form>`;
   $('#day-routine').onchange = event => { rememberDay(); d.rutina = event.target.value; addRoutineEntries(); renderDay(); };
   $('#day-form').onsubmit = saveDay;
 }
@@ -305,7 +382,7 @@ async function persistDay(d) {
     // Releer por fecha permite reintentar después de un guardado parcial sin duplicar registros.
     const existing = check(await db.from('registros').select('id').eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',entry.ejercicio));
     const payload = {user_id:d.owner,fecha:d.fecha,ejercicio:entry.ejercicio,implemento:entry.implemento,series:entry.series,nota:entry.nota.trim()};
-    check(await (existing.length ? db.from('registros').update(payload).eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',entry.ejercicio) : db.from('registros').insert(payload)));
+    check(await (existing.length ? db.from('registros').update(payload).eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',entry.ejercicio) : db.from('registros').insert({...payload,id:entry.id || crypto.randomUUID()})));
   }
   for (const id of d.removed || []) check(await db.from('registros').delete().eq('user_id',d.owner).eq('fecha',d.fecha).eq('ejercicio',id));
   if (d.fue === null) check(await db.from('dias').delete().eq('user_id',d.owner).eq('fecha',d.fecha));
@@ -315,7 +392,7 @@ async function saveDay(event) {
   event.preventDefault(); if (busy) return;
   rememberDay(); const d = dayDraft, version = routeVersion, button = event.target.querySelector('[type=submit]');
   busy = true; button.disabled = true; message();
-  try { await persistDay(d); dayDrafts.delete(`${d.owner}:${d.fecha}`); if (version === routeVersion) { month = d.fecha.slice(0,7); location.hash = '#resumen'; } }
+  try { d.entries.forEach(e => { parseDaySeries(e.series); if (e.implemento && !implementsList.includes(e.implemento)) throw new Error('Implemento inválido.'); e.id ||= crypto.randomUUID(); }); await writeOperation({id:crypto.randomUUID(),kind:'day',data:JSON.parse(JSON.stringify({...d,history:undefined}))}); dayDrafts.delete(`${d.owner}:${d.fecha}`); if (version === routeVersion) { month = d.fecha.slice(0,7); location.hash = '#resumen'; } }
   catch (error) { if (version === routeVersion) fail(error); }
   finally { busy = false; button.disabled = false; }
 }
@@ -333,7 +410,7 @@ async function handleRoutineDayClick(button) {
   if (data.attendance) { rememberDay(); dayDraft.fue = data.attendance === 'true'; renderDay(); return true; }
   if (button.id === 'clear-attendance') { rememberDay(); dayDraft.fue = null; renderDay(); return true; }
   if (data.dayRemove) { rememberDay(); dayDraft.entries = dayDraft.entries.filter(e => e.ejercicio !== data.dayRemove); dayDraft.removed = [...new Set([...(dayDraft.removed || []),data.dayRemove])]; renderDay(); return true; }
-  if (data.daySeries) { rememberDay(); dayDraft.entries.find(e => e.ejercicio === data.daySeries).series.push({}); renderDay(); return true; }
+  if (data.daySeries) { rememberDay(); dayDraft.entries.find(e => e.ejercicio === data.daySeries).series.push(repeatSeries(dayDraft.entries.find(e => e.ejercicio === data.daySeries).series)); renderDay(); return true; }
   if (button.id === 'day-add-exercise' || data.routineAdd) { rememberDay(); selectionTarget = data.routineAdd ? {type:'routine',id:data.routineAdd} : {type:'day'}; location.hash = '#registrar'; return true; }
   if (button.id === 'cancel-selection') { const target = selectionTarget; selectionTarget = null; location.hash = target.type === 'day' ? `#dia/${dayDraft.fecha}` : '#rutinas'; return true; }
   if (button.id === 'create-routine' || data.routineRename || data.routineDelete || data.routineRemove || data.routineMove) {
@@ -361,7 +438,7 @@ document.addEventListener('click', async event => {
     else if (button.dataset.exercise && selectionTarget) { await selectExercise(button.dataset.exercise); }
     else if (button.dataset.exercise) location.hash = `#ejercicio/${encodeURIComponent(button.dataset.exercise)}`;
     else if (button.dataset.record) { const r = [...monthRows,...exerciseRows].find(r => r.id === button.dataset.record); if (r) { const hash = `#ejercicio/${encodeURIComponent(r.ejercicio)}/${r.id}`; if (location.hash === hash) await route(); else location.hash = hash; } }
-    else if (button.id === 'add-series' || button.id === 'copy-series') { const last = [...document.querySelectorAll('.series')].at(-1); const s = {}; if (button.id === 'copy-series') last?.querySelectorAll('input').forEach(i => s[i.dataset.field] = i.value); $('#series').insertAdjacentHTML('beforeend',seriesHTML(s)); numberSeries(); }
+    else if (button.id === 'add-series' || button.id === 'copy-series') { const rows = [...document.querySelectorAll('.series')].map(row => Object.fromEntries([...row.querySelectorAll('input')].map(i => [i.dataset.field,i.value]))); const s = button.id === 'copy-series' ? repeatSeries(rows) : {}; $('#series').insertAdjacentHTML('beforeend',seriesHTML(s)); numberSeries(); }
     else if (button.hasAttribute('data-remove')) { button.closest('.series').remove(); if ($('#day-form')) rememberDay(); else numberSeries(); }
     else if (button.id === 'toggle-image' && current.img2) { const img = button.querySelector('img'); img.setAttribute('src',img.getAttribute('src') === current.img ? current.img2 : current.img); }
     else if (button.id === 'rename' || button.id === 'reset-name') {
@@ -384,13 +461,25 @@ document.addEventListener('click', async event => {
       busy = true; await saveSettings({...settings,nombres:{...settings.nombres,__abru:[...completed].join(',')}}); if (version === routeVersion) renderAbru(location.hash.split('/')[1] ? decodeURIComponent(location.hash.split('/')[1]) : null);
     } else if (button.id === 'delete-record') {
       if (!confirm('¿Borrar este registro? No se puede recuperar.')) return;
-      busy = true; check(await db.from('registros').delete().eq('id',editing.id)); if (version === routeVersion) { drafts.delete(`${renderedUser}:${renderedHash}`); renderedHash = undefined; location.hash = '#mes'; }
+      busy = true; await writeOperation({id:crypto.randomUUID(),kind:'delete',data:{id:editing.id}}); if (version === routeVersion) { drafts.delete(`${renderedUser}:${renderedHash}`); renderedHash = undefined; location.hash = '#mes'; }
     } else if (button.id === 'logout') {
       if (!confirm('¿Cerrar sesión?')) return;
-      busy = true; check(await db.auth.signOut()); drafts.clear(); dayDrafts.clear(); selectionTarget = null; dayDraft = null; user = null; settings = {nombres:{},propios:[],rutinas:[]}; monthRows = exerciseRows = []; current = editing = null; login();
+      busy = true; check(await db.auth.signOut()); localStorage.setItem('gym:session-user','null'); drafts.clear(); dayDrafts.clear(); selectionTarget = null; dayDraft = null; user = null; settings = {nombres:{},propios:[],rutinas:[]}; monthRows = exerciseRows = []; current = editing = null; login();
     }
   } catch (error) { fail(error); } finally { busy = false; }
 });
+document.addEventListener('click',async event => {
+  const button = event.target.closest('[data-week],[data-discard]');
+  if (!button || !user) return;
+  try {
+  if (button.dataset.week) weekOffset = Math.min(0,weekOffset+Number(button.dataset.week));
+  else { storeQueue(pending().filter(o => o.id !== button.dataset.discard)); await flushQueue(); }
+  await route();
+  } catch (error) { fail(error); }
+});
+async function reconnect() { try { await flushQueue(); if (user && !busy && !$('#record-form') && !$('#day-form')) await route(); } catch (error) { fail(error); } }
+window.addEventListener('online',reconnect);
+document.addEventListener('visibilitychange',() => { if (document.visibilityState === 'visible') reconnect(); });
 window.addEventListener('hashchange',route);
 async function start() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => message('La instalación sin conexión no está disponible. Podés seguir usando la app.'));
@@ -401,9 +490,11 @@ async function start() {
       $('#app').innerHTML = '<section class="login"><p class="eyebrow">Tu espacio de entrenamiento</p><h1>Gym está casi listo.</h1><div class="panel"><h2>Falta conectar Supabase</h2><p>Completá <code>public/config.js</code> con la URL y la clave publicable del proyecto. Después recargá esta página para entrar con tu cuenta.</p></div></section>'; return;
     }
     db = window.supabase.createClient(config.supabaseUrl,config.supabaseKey);
-    user = check(await db.auth.getSession()).session?.user;
-    if (user) { await loadSettings(); await route(); } else login();
-    db.auth.onAuthStateChange((event,session) => { if (event === 'SIGNED_OUT') { rememberDraft(); renderedHash = undefined; ++routeVersion; user = null; settings = {nombres:{},propios:[],rutinas:[]}; monthRows = exerciseRows = []; login(); } else if (session) user = session.user; });
+    try { user = check(await db.auth.getSession()).session?.user; }
+    catch (error) { if (!networkError(error)) throw error; user = JSON.parse(localStorage.getItem('gym:session-user') || 'null'); }
+    if (user) localStorage.setItem('gym:session-user',JSON.stringify(user));
+    if (user) { await loadSettings(); await flushQueue(); await route(); } else login();
+    db.auth.onAuthStateChange((event,session) => { if (event === 'SIGNED_OUT') { localStorage.setItem('gym:session-user','null'); rememberDraft(); renderedHash = undefined; ++routeVersion; user = null; settings = {nombres:{},propios:[],rutinas:[]}; monthRows = exerciseRows = []; login(); } else if (session) { user = session.user; localStorage.setItem('gym:session-user',JSON.stringify(user)); } });
   } catch (error) { fail(error); $('#app').innerHTML = '<h1>No pudimos iniciar Gym</h1><p>Revisá la conexión y recargá la página para volver a intentar.</p><button onclick="location.reload()">Reintentar</button>'; }
 }
 start();
