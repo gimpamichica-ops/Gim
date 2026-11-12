@@ -12,3 +12,15 @@ nav{position:fixed;z-index:4;bottom:0;left:0;right:0;background:#101722f5;border
 @media(max-width:400px){header,main{padding-left:16px;padding-right:16px}.panel,.day{padding:16px}.group-card{padding:16px}.login h1{font-size:38px}.series{gap:4px}.series input{font-size:18px}.step .row{align-items:flex-start}.routine-item{flex-wrap:wrap}}
 @media(prefers-reduced-motion:no-preference){button,a,input,textarea,select{transition:background .16s,border-color .16s,transform .16s,box-shadow .16s}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+.target{display:block;color:var(--accent);font-size:13px;font-weight:600;margin-top:2px}
+.routine-day{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.routine-day h3{margin:0}
+.alts{flex-basis:100%;display:grid;gap:8px;padding:8px 0}
+.weekly-list{list-style:none;padding-left:0}
+.weekly-list .swatch{vertical-align:middle}
+.analysis{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+.analysis summary{cursor:pointer;font-weight:700}
+.analysis ul{padding-left:20px;line-height:1.6}
+.routine-day summary{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;padding:8px 0;min-height:44px}
+.routine-day summary small{color:var(--muted)}
+.routine-day[open] summary{margin-bottom:8px}

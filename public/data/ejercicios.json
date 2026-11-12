@@ -357,7 +357,7 @@
   "img": "img/Cable_Hip_Adduction/0.jpg",
   "img2": "img/Cable_Hip_Adduction/1.jpg",
   "musculos": [
-   "quadriceps"
+   "adductors"
   ],
   "secundarios": []
  },
@@ -423,6 +423,21 @@
    "calves"
   ],
   "secundarios": []
+ },
+ {
+  "id": "Plie_Dumbbell_Squat",
+  "nombre": "Sentadilla sumo",
+  "grupo": "piernas",
+  "img": "img/Plie_Dumbbell_Squat/0.jpg",
+  "img2": "img/Plie_Dumbbell_Squat/1.jpg",
+  "musculos": [
+   "quadriceps",
+   "adductors"
+  ],
+  "secundarios": [
+   "glutes",
+   "hamstrings"
+  ]
  },
  {
   "id": "Barbell_Bench_Press_-_Medium_Grip",
@@ -1325,6 +1340,19 @@
   "secundarios": []
  },
  {
+  "id": "Seated_Barbell_Military_Press",
+  "nombre": "Press militar sentado",
+  "grupo": "hombros",
+  "img": "img/Seated_Barbell_Military_Press/0.jpg",
+  "img2": "img/Seated_Barbell_Military_Press/1.jpg",
+  "musculos": [
+   "shoulders"
+  ],
+  "secundarios": [
+   "triceps"
+  ]
+ },
+ {
   "id": "Barbell_Curl",
   "nombre": "Curl con barra",
   "grupo": "brazos",
@@ -1676,6 +1704,20 @@
   "secundarios": []
  },
  {
+  "id": "Dip_Machine",
+  "nombre": "Fondos en máquina",
+  "grupo": "brazos",
+  "img": "img/Dip_Machine/0.jpg",
+  "img2": "img/Dip_Machine/1.jpg",
+  "musculos": [
+   "triceps"
+  ],
+  "secundarios": [
+   "chest",
+   "shoulders"
+  ]
+ },
+ {
   "id": "Walking_Treadmill",
   "nombre": "Cinta caminando",
   "grupo": "cardio",
@@ -2006,6 +2048,17 @@
    "lats"
   ],
   "como": "Acostado en un banco, agarrate detrás de la cabeza, subí el cuerpo recto apoyando solo los hombros y bajá lento sin arquear la espalda."
+ },
+ {
+  "id": "Knee_Hip_Raise_On_Parallel_Bars",
+  "nombre": "Elevación de rodillas",
+  "grupo": "abdomen",
+  "img": "img/Knee_Hip_Raise_On_Parallel_Bars/0.jpg",
+  "img2": "img/Knee_Hip_Raise_On_Parallel_Bars/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
  },
  {
   "id": "abru-colgada",

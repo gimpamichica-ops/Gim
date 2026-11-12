@@ -10,7 +10,7 @@ const root = new URL('../public/',import.meta.url);
 const read = path => readFileSync(new URL(path,root),'utf8');
 const exists = path => assert.ok(existsSync(new URL(path,root)),`Falta ${path}`);
 const catalog = JSON.parse(read('data/ejercicios.json'));
-assert.equal(catalog.length,162);
+assert.equal(catalog.length,166);
 assert.equal(new Set(catalog.map(e=>e.id)).size,catalog.length,'IDs duplicados');
 for (const e of catalog) { assert.ok(e.id && e.nombre && e.grupo); for (const field of ['img','img2']) if (e[field]) exists(e[field]); }
 assert.equal(catalog.filter(e=>e.grupo==='abru').length,9);
@@ -189,7 +189,8 @@ console.log('OK · contador, flechas y selección inicial del implemento.');
 // Calendar, routine management and program grouping.
 context.document.querySelectorAll=()=>[];
 elements.delete('#record-form');
-run("month='2026-02'; settings.rutinas=[{id:'d1',nombre:'Piernas',ejercicios:['Barbell_Squat']}]");
+run("month='2026-02'; settings.rutinas=normalizeRoutines([{id:'d1',nombre:'Piernas',ejercicios:['Barbell_Squat']}])");
+assert.equal(run('settings.rutinas[0].dias[0].ejercicios[0].id'),'Barbell_Squat');
 const calendar=run("summaryHTML([{fecha:'2026-02-03',fue:true,rutina:'d1'},{fecha:'2026-02-04',fue:false}])");
 assert.equal((calendar.match(/data-day=/g)||[]).length,28);
 assert.ok(calendar.includes('D1')); assert.ok(calendar.includes('absent')); assert.ok(calendar.includes('Piernas'));
@@ -239,7 +240,7 @@ const monthly=run("progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:1
 assert.ok(monthly.includes('30 min')); assert.ok(!monthly.includes('45 min')); assert.ok(monthly.includes('2 km'));
 assert.equal(run("seriesHTML({seg:90},{grupo:'abdomen'})").includes('value="1:30"'),true);
 assert.ok(!run("seriesHTML({},{grupo:'abru'})").includes('required'));
-assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v9'"));
+assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v10'"));
 console.log('OK · series opcionales, tiempo, métricas independientes y mejor día del mes.');
 
 assert.equal(run("parseDaySeries([{seg:formatTime(60.5)}])[0].seg"),60.5);
@@ -303,11 +304,12 @@ await run('flushQueue()');assert.equal(run('pending().length'),2);
 assert.ok(element('#pending-status').innerHTML.includes('data-discard="blocked"'));
 run("storeQueue(pending().filter(o=>o.id !== 'blocked')); db=queueDb");await run('flushQueue()');
 assert.equal(offlineRecords.size,0);assert.equal(run('pending().length'),0);
-// Monday to Sunday inclusive, with secondary muscles at half weight and unknown exercises ignored.
+// Sunday to Saturday inclusive, with secondary muscles at half weight and unknown exercises ignored.
 const volume = run("weeklyVolume([{ejercicio:'volume-test',fecha:'2026-11-08',series:[{},{}]},{ejercicio:'volume-test',fecha:'2026-11-09',series:[{},{}]},{ejercicio:'volume-test',fecha:'2026-11-15',series:[{}]},{ejercicio:'volume-test',fecha:'2026-11-16',series:[{}]},{ejercicio:'unknown',fecha:'2026-11-10',series:[{}]}],'2026-11-15')");
-assert.equal(volume.start,'2026-11-09');assert.equal(volume.end,'2026-11-16');
-assert.equal(volume.totals.chest,3);assert.equal(volume.totals.triceps,1.5);assert.equal(volume.totals.calves,0);
-assert.ok(run('muscleMap({volume:{chest:3,triceps:1.5}})').includes('hsl(14 100%'));
+assert.equal(volume.start,'2026-11-15');assert.equal(volume.end,'2026-11-22');
+assert.equal(volume.totals.chest,2);assert.equal(volume.totals.triceps,1);assert.equal(volume.totals.calves,0);
+assert.ok(run('muscleMap({volume:{chest:3,triceps:12}})').includes('#22c55e')); assert.ok(run('muscleMap({volume:{chest:3,triceps:12}})').includes('#ef4444'));
+assert.equal(run('heat(0).label'),'Sin trabajar');assert.equal(run('heat(4).label'),'Medio');assert.equal(run('heat(10).label'),'Mucho');
 assert.deepEqual(JSON.parse(run('JSON.stringify(repeatSeries([]))')),{});
 for (const series of [[{kg:'0',reps:'8',seg:'1:30'}],[{min:'20',km:'2,5'}]]) {
   context.repeatedInput=series;
@@ -358,3 +360,22 @@ for (const [fg,bg] of [
   assert.ok((levels[0]+.05)/(levels[1]+.05)>=4.5,'Contraste AA: '+fg+' sobre '+bg);
 }
 console.log('OK - contraste AA de texto, botones y estados.');
+// Rutinas con días, objetivos, reemplazos y análisis.
+run(`catalog = ${JSON.stringify(catalog)}; settings.propios=[]; settings.rutinas=normalizeRoutines([{id:'viejo',nombre:'Día 1',ejercicios:['Leg_Press']},{id:'p',nombre:'Full',dias:[{id:'p1',nombre:'Día 1',ejercicios:[{id:'Leverage_Iso_Row',series:3,objetivo:'3 × 8–12'},{id:'Barbell_Curl',series:3}]}]}])`);
+assert.equal(run('settings.rutinas.length'),2); assert.equal(run('settings.rutinas[0].dias[0].id'),'viejo');
+assert.equal(run("findRoutineDay(settings.rutinas,'p1').nombre"),'Día 1');
+run("dayDraft={fecha:'2026-11-12',rutina:'p1',entries:[],history:[{ejercicio:'Barbell_Curl',fecha:'2026-11-01',series:[{kg:20,reps:10}]}]}; addRoutineEntries()");
+assert.equal(run('dayDraft.entries[0].series.length'),3); assert.equal(run('dayDraft.entries[0].objetivo'),'3 × 8–12');
+assert.equal(run('dayDraft.entries[1].series.length'),3); assert.equal(run('dayDraft.entries[1].series[2].kg'),20);
+assert.ok(run("alternatives('Leverage_Iso_Row').map(e=>e.id)").slice(0,3).every(id=>/Row/.test(id)));
+run("swapOpen='d|Leverage_Iso_Row'"); await run("handleRoutineDayClick({dataset:{swapTo:'Seated_Cable_Rows'}})");
+assert.equal(run('dayDraft.entries[0].ejercicio'),'Seated_Cable_Rows'); assert.ok(run("dayDraft.removed.includes('Leverage_Iso_Row')")); assert.equal(run('dayDraft.entries[0].series.length'),3);
+const analysis = run("analyzeRoutine({dias:[{id:'a',nombre:'A',ejercicios:[{id:'Barbell_Bench_Press_-_Medium_Grip',series:4}]}]})");
+assert.ok(analysis.bad.some(t=>t.includes('Poco volumen de cuádriceps'))); assert.ok(analysis.bad.some(t=>t.includes('Más empuje que tirón')));
+run('renderRoutines()'); assert.ok(element('#app').innerHTML.includes('data-program-add-day')); assert.ok(element('#app').innerHTML.includes('Análisis de la rutina')); assert.ok(element('#app').innerHTML.includes('3 × 8–12'));
+console.log('OK - rutinas con días, objetivos, reemplazos y análisis.');
+// Un día ya guardado no vuelve a sumar ejercicios de la rutina que se quitaron o cambiaron.
+run("dayDraft={fecha:'2026-11-12',rutina:'p1',entries:[{ejercicio:'Seated_Cable_Rows',series:[{}],nota:''}],history:[]}; addRoutineEntries(false)");
+assert.equal(run('dayDraft.entries.length'),1);
+run("swapOpen='r|p1|0'"); assert.ok(!run("swapHTML('r|p1|0','Leverage_Iso_Row',['Seated_Cable_Rows'])").includes('data-swap-to="Seated_Cable_Rows"'));
+console.log('OK - día guardado sin reaparecer ejercicios y sin duplicados al cambiar.');

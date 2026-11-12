@@ -36,7 +36,7 @@ function equipmentLabel(e) {
   if (/Dumbbell|Goblet|Hammer_Curls|Concentration_Curls|Side_Lateral|Reverse_Flyes|Seated_Bent-Over/i.test(source)) return 'Mancuerna';
   if (/Machine|Leverage|Leg_Press|Leg_Extensions|Leg_Curl|Thigh_|Calf_Raise|Hack_Squat|Butterfly|Treadmill|Stationary|Elliptical|Stairmaster|Recumbent/i.test(source)) return 'Máquina';
   if (/Barbell|EZ-Bar|Deadlift|Good_Morning|Military_Press|Lying_Triceps_Press|T-Bar_Row/i.test(source)) return 'Barra';
-  if (/Pullups|Chin-Up|Dips|Pushups|Inverted_Row|Muscle_Up|front-lever|Front_Lever|dragon-flag|Dragon_Flag|Crunch|Sit-Up|Plank|Side_Bridge|Leg_Raise|Mountain_Climbers|Air_Bike/i.test(source)) return 'Peso corporal';
+  if (/Pullups|Chin-Up|Dips|Pushups|Inverted_Row|Muscle_Up|front-lever|Front_Lever|dragon-flag|Dragon_Flag|Crunch|Sit-Up|Plank|Side_Bridge|Leg_Raise|Knee_Hip_Raise|Mountain_Climbers|Air_Bike/i.test(source)) return 'Peso corporal';
   return 'A elección';
 }
 function login() {
@@ -110,24 +110,38 @@ function overlayRows(rows,table,operations = pending()) {
 const repeatSeries = series => ({...(series.at(-1) || {})});
 let weekOffset = 0;
 const muscleNames = {neck:'Cuello',shoulders:'Hombros',chest:'Pecho',biceps:'Bíceps',triceps:'Tríceps',forearms:'Antebrazos',abdominals:'Abdominales',abductors:'Abductores',adductors:'Aductores',quadriceps:'Cuádriceps',calves:'Gemelos',traps:'Trapecios',lats:'Dorsales','middle back':'Espalda media','lower back':'Espalda baja',glutes:'Glúteos',hamstrings:'Isquiotibiales'};
+// La semana arranca el domingo: el mapa se reinicia cada domingo.
 function weeklyVolume(rows,date = today()) {
-  const start = dateShift(date,-((new Date(date+'T12:00:00').getDay()+6)%7)), end = dateShift(start,7);
+  const start = dateShift(date,-new Date(date+'T12:00:00').getDay()), end = dateShift(start,7);
   const totals = Object.fromEntries(Object.keys(muscleNames).map(k => [k,0]));
   for (const row of rows.filter(r => r.fecha >= start && r.fecha < end)) {
     const e = exercises().find(e => e.id === row.ejercicio);
-    for (const key of Object.keys(totals)) totals[key] += row.series.length*((e?.musculos || []).includes(key) ? 1 : (e?.secundarios || []).includes(key) ? 0.5 : 0);
+    if (e?.grupo === 'cardio') continue;
+    // Un ejercicio marcado sin números cuenta como 1 serie: se hizo, pero no sabemos cuántas.
+    for (const key of Object.keys(totals)) totals[key] += (row.series.length || 1)*((e?.musculos || []).includes(key) ? 1 : (e?.secundarios || []).includes(key) ? 0.5 : 0);
   }
   return {start,end,totals};
 }
+// Series semanales por músculo: menos de 4 poco, 4 a 9 medio, 10 o más mucho (rango típico de hipertrofia 10–20).
+const heat = v => !v ? {color:'#46546a',label:'Sin trabajar'} : v < 4 ? {color:'#22c55e',label:'Poco'} : v < 10 ? {color:'#facc15',label:'Medio'} : {color:'#ef4444',label:'Mucho'};
+const heatLegend = '<p class="legend"><span><span class="swatch" style="background:#22c55e"></span>Poco (1–3)</span><span><span class="swatch" style="background:#facc15"></span>Medio (4–9)</span><span><span class="swatch" style="background:#ef4444"></span>Mucho (10+)</span></p>';
 function weeklyHTML(rows) {
   const {start,end,totals} = weeklyVolume(rows,dateShift(today(),weekOffset*7));
-  return '<section class="panel"><div class="row between"><button data-week="-1" aria-label="Semana anterior">‹</button><h2>'+(!weekOffset ? 'Esta semana' : 'Semana anterior')+'</h2><button data-week="1" aria-label="Semana siguiente" '+(!weekOffset ? 'disabled' : '')+'>›</button></div><p>'+start+' — '+dateShift(end,-1)+'</p>'+muscleMap({volume:totals})+'<ul class="weekly-list">'+Object.entries(totals).sort((a,b) => b[1]-a[1]).map(([k,v]) => '<li>'+muscleNames[k]+': <strong>'+v.toLocaleString('es-AR')+'</strong>'+(!v ? ' · sin trabajar esta semana' : '')+'</li>').join('')+'</ul></section>';
+  return '<section class="panel"><div class="row between"><button data-week="-1" aria-label="Semana anterior">‹</button><h2>'+(!weekOffset ? 'Esta semana' : 'Semana anterior')+'</h2><button data-week="1" aria-label="Semana siguiente" '+(!weekOffset ? 'disabled' : '')+'>›</button></div><p>Domingo '+start+' — sábado '+dateShift(end,-1)+'</p>'+muscleMap({volume:totals})+'<ul class="weekly-list">'+Object.entries(totals).filter(([k]) => k !== 'neck').sort((a,b) => b[1]-a[1]).map(([k,v]) => '<li><span class="swatch" style="background:'+heat(v).color+'"></span> '+muscleNames[k]+': <strong>'+v.toLocaleString('es-AR')+'</strong> serie'+(v === 1 ? '' : 's')+' · '+heat(v).label.toLowerCase()+'</li>').join('')+'</ul></section>';
 }
+// Rutinas: [{id,nombre,dias:[{id,nombre,ejercicios:[{id,series?,objetivo?,kg?,seg?,min?}]}]}]. El formato viejo (días sueltos con ids) se agrupa en "Mi rutina" sin cambiar los ids de los días, así los días ya marcados siguen apuntando bien.
+function normalizeRoutines(list = []) {
+  const day = d => ({...d,ejercicios:(d.ejercicios || []).map(x => typeof x === 'string' ? {id:x} : x)});
+  const old = list.filter(r => !r.dias);
+  return [...(old.length ? [{id:'mi-rutina',nombre:'Mi rutina',dias:old.map(day)}] : []),...list.filter(r => r.dias).map(p => ({...p,dias:p.dias.map(day)}))];
+}
+const routineDays = () => settings.rutinas.flatMap(p => p.dias.map((d,i) => ({...d,programa:p,numero:i+1})));
+const findRoutineDay = (rutinas,id) => rutinas.flatMap(p => p.dias).find(d => d.id === id);
 async function loadSettings() {
   const owner = user;
   const data = await cachedRead('settings',db.from('ajustes').select('nombres,propios,rutinas').eq('user_id',owner.id).maybeSingle());
   if (user !== owner) return;
-  settings = {nombres:data?.nombres || {},propios:data?.propios || [],rutinas:data?.rutinas || []};
+  settings = {nombres:data?.nombres || {},propios:data?.propios || [],rutinas:normalizeRoutines(data?.rutinas)};
 }
 async function saveSettings(next) {
   const owner = user;
@@ -136,7 +150,7 @@ async function saveSettings(next) {
 async function route() {
   const version = ++routeVersion;
   if (!user) return;
-  rememberDraft();
+  rememberDraft(); swapOpen = null;
   message(); $('#nav').hidden = $('#settings-link').hidden = false;
   if (location.hash === '#mes') location.hash = '#resumen';
   const hash = location.hash || '#resumen';
@@ -237,8 +251,8 @@ function muscleMap(e) {
     ['calves','M32 171Q27 183 33 196L37 201 42 194 42 173Z M68 171Q73 183 67 196L63 201 58 194 58 173Z']
   ];
   const body = 'M41 35L40 41Q23 39 19 54L14 85 9 119Q8 126 14 128L20 125 29 94 33 77 36 96 30 117Q26 136 28 160L30 172 30 199 27 211Q32 215 40 211L43 184 47 163 50 144 53 163 57 184 60 211Q68 215 73 211L70 199 70 172 72 160Q74 136 70 117L64 96 67 77 71 94 80 125 86 128Q92 126 91 119L86 85 81 54Q77 39 60 41L59 35Z';
-  const figure = (regions,x) => '<g transform="translate('+x+' 0)"><g fill="#344156" stroke="#111722"><ellipse cx="50" cy="21" rx="12" ry="15"/><path d="'+body+'"/></g>'+regions.map(([muscle,path]) => '<path class="region '+((e.musculos || []).includes(muscle) ? 'primary-muscle' : (e.secundarios || []).includes(muscle) ? 'secondary' : '')+'"'+(e.volume ? ' style="fill:'+(e.volume[muscle] ? 'hsl(14 100% '+(75-40*e.volume[muscle]/Math.max(1,...Object.values(e.volume)))+'%)' : '#46546a')+'"' : '')+' d="'+path+'"><title>'+muscle+'</title></path>').join('')+'</g>';
-  return '<section class="panel muscles"><h3>'+(e.volume ? 'Series por músculo' : 'Músculos que trabajás')+'</h3><svg viewBox="0 0 210 230" role="img" aria-label="Mapa muscular de frente y espalda">'+figure(front,0)+figure(back,110)+'<g fill="#a8b6ce" font-size="9" text-anchor="middle"><text x="50" y="226">FRENTE</text><text x="160" y="226">ESPALDA</text></g></svg>'+(e.volume ? '<p class="legend">Más color = más series</p>' : '<p class="legend"><span><span class="swatch primary-swatch"></span>Principal</span><span><span class="swatch secondary-swatch"></span>Secundario</span></p>'+(!(e.musculos || []).length ? '<small>Sin músculos especificados para este ejercicio.</small>' : ''))+'</section>';
+  const figure = (regions,x) => '<g transform="translate('+x+' 0)"><g fill="#344156" stroke="#111722"><ellipse cx="50" cy="21" rx="12" ry="15"/><path d="'+body+'"/></g>'+regions.map(([muscle,path]) => '<path class="region '+((e.musculos || []).includes(muscle) ? 'primary-muscle' : (e.secundarios || []).includes(muscle) ? 'secondary' : '')+'"'+(e.volume ? ' style="fill:'+heat(e.volume[muscle]).color+'"' : '')+' d="'+path+'"><title>'+(e.volume ? (muscleNames[muscle] || muscle)+': '+(e.volume[muscle] || 0)+' series' : muscleNames[muscle] || muscle)+'</title></path>').join('')+'</g>';
+  return '<section class="panel muscles"><h3>'+(e.volume ? 'Series por músculo' : 'Músculos que trabajás')+'</h3><svg viewBox="0 0 210 230" role="img" aria-label="Mapa muscular de frente y espalda">'+figure(front,0)+figure(back,110)+'<g fill="#a8b6ce" font-size="9" text-anchor="middle"><text x="50" y="226">FRENTE</text><text x="160" y="226">ESPALDA</text></g></svg>'+(e.volume ? heatLegend : '<p class="legend"><span><span class="swatch primary-swatch"></span>Principal</span><span><span class="swatch secondary-swatch"></span>Secundario</span></p>'+(!(e.musculos || []).length ? '<small>Sin músculos especificados para este ejercicio.</small>' : ''))+'</section>';
 }
 
 function progress(e,rows,period = 'day') {
@@ -318,15 +332,73 @@ function attendanceStats(rows) {
   const counts = new Map();
   marked.filter(d => d.fue && d.rutina).forEach(d => counts.set(d.rutina,(counts.get(d.rutina)||0)+1));
   const favorite = [...counts].sort((a,b) => b[1]-a[1])[0]?.[0];
-  return {yes:marked.filter(d => d.fue).length,no:marked.filter(d => !d.fue).length,streak,favorite:settings.rutinas.find(r => r.id === favorite)?.nombre || '—'};
+  return {yes:marked.filter(d => d.fue).length,no:marked.filter(d => !d.fue).length,streak,favorite:routineDays().find(r => r.id === favorite)?.nombre || '—'};
 }
 function summaryHTML(rows) {
   const stats = attendanceStats(rows), [y,m] = month.split('-').map(Number);
   const offset = (new Date(y,m-1,1).getDay()+6)%7;
-  return `<div class="stats">${[['Fui',stats.yes],['No fui',stats.no],['Racha actual',`${stats.streak} ${stats.streak===1?"día":"días"}`],['Rutina más hecha',stats.favorite]].map(([label,value]) => `<div class="panel"><small>${label}</small><strong>${escapeHTML(value)}</strong></div>`).join('')}</div><div class="calendar" aria-label="Calendario mensual">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => `<small>${d}</small>`).join('')}${'<span></span>'.repeat(offset)}${Array.from({length:new Date(y,m,0).getDate()},(_,i) => { const date = `${month}-${String(i+1).padStart(2,'0')}`, day = rows.find(d => d.fecha === date), index = settings.rutinas.findIndex(r => r.id === day?.rutina); return `<button data-day="${date}" class="${date === today() ? 'today' : ''} ${day ? day.fue ? 'attended' : 'absent' : ''}" aria-label="${date}: ${day ? day.fue ? 'Fui' : 'No fui' : 'Sin marcar'}"><span>${i+1}</span><small>${day ? day.fue ? '✓' : '×' : ''}${day?.fue && index >= 0 ? ` D${index+1}` : ''}</small></button>`; }).join('')}</div><a class="button wide" href="#rutinas">Mis rutinas</a>`;
+  return `<div class="stats">${[['Fui',stats.yes],['No fui',stats.no],['Racha actual',`${stats.streak} ${stats.streak===1?"día":"días"}`],['Rutina más hecha',stats.favorite]].map(([label,value]) => `<div class="panel"><small>${label}</small><strong>${escapeHTML(value)}</strong></div>`).join('')}</div><div class="calendar" aria-label="Calendario mensual">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d => `<small>${d}</small>`).join('')}${'<span></span>'.repeat(offset)}${Array.from({length:new Date(y,m,0).getDate()},(_,i) => { const date = `${month}-${String(i+1).padStart(2,'0')}`, day = rows.find(d => d.fecha === date), done = routineDays().find(r => r.id === day?.rutina); return `<button data-day="${date}" class="${date === today() ? 'today' : ''} ${day ? day.fue ? 'attended' : 'absent' : ''}" aria-label="${date}: ${day ? day.fue ? 'Fui' : 'No fui' : 'Sin marcar'}"><span>${i+1}</span><small>${day ? day.fue ? '✓' : '×' : ''}${day?.fue && done ? ` D${done.numero}` : ''}</small></button>`; }).join('')}</div><a class="button wide" href="#rutinas">Mis rutinas</a>`;
+}
+// Días abiertos en Mis rutinas: se conservan al volver a dibujar la pantalla tras cada cambio.
+const openDays = new Set();
+document.addEventListener('toggle',event => { const id = event.target.dataset?.openDay; if (id) event.target.open ? openDays.add(id) : openDays.delete(id); },true);
+let swapOpen = null; // 'r|<díaId>|<índice>' en Mis rutinas o 'd|<ejercicio>' en la hoja del día
+// Ejercicios parecidos: mismo grupo y músculo principal; primero el mismo movimiento (remo, press, curl…), después más secundarios en común.
+const movement = x => ((x.img || x.id).match(/Hammer|Lateral|Rear|Row|Pulldown|Pull-?ups?|Chin|Press|Curl|Squat|Lunge|Fl[yi]|Raise|Extension|Pushdown|Deadlift|Dip|Thrust|Bridge|Kickback|Crunch|Shrug|Ad?b?duct/i) || [''])[0].toLowerCase();
+function alternatives(id) {
+  const found = exercises().find(x => x.id === id); if (!found) return [];
+  const e = found.base || found, sec = e.secundarios || [], move = movement(e);
+  return exercises().filter(x => !x.base && x.id !== e.id && x.grupo === e.grupo && x.grupo !== 'abru' && ((move && movement(x) === move) || (e.musculos || []).some(m => (x.musculos || []).includes(m))))
+    .map(x => [x,(move && movement(x) === move ? 10 : 0)+(x.secundarios || []).filter(m => sec.includes(m)).length]).sort((a,b) => b[1]-a[1]).slice(0,6).map(([x]) => x);
+}
+function swapHTML(key,id,taken = []) {
+  if (swapOpen !== key) return '';
+  const alts = alternatives(id).filter(x => !taken.includes(x.id));
+  return '<div class="alts"><small>Trabajan lo mismo · tocá uno para cambiarlo</small>'+(alts.map(x => `<button type="button" class="entry search-result" data-swap-to="${escapeHTML(x.id)}">${image(x)}<div><strong>${escapeHTML(name(x))}</strong><small>${equipmentLabel(x)}</small></div></button>`).join('') || '<small>No hay otro ejercicio parecido en el catálogo.</small>')+'</div>';
+}
+const bigMuscles = ['quadriceps','glutes','hamstrings','chest','lats','shoulders','biceps','triceps'];
+const allMuscles = [...bigMuscles,'middle back','adductors','abductors','calves','abdominals'];
+// Análisis por reglas (sin IA): supone cada día una vez por semana, 3 series si no hay objetivo, principal 1 y secundario 0,5.
+function analyzeRoutine(p) {
+  const sets = Object.fromEntries(allMuscles.map(m => [m,0])), days = Object.fromEntries(allMuscles.map(m => [m,new Set()])), used = new Set();
+  let cardio = false;
+  for (const d of p.dias) for (const it of d.ejercicios) {
+    const e = exercises().find(x => x.id === it.id); if (!e) continue;
+    used.add((e.base || e).id);
+    if (e.grupo === 'cardio') { cardio = true; continue; }
+    for (const m of allMuscles) { if ((e.musculos || []).includes(m)) { sets[m] += it.series || 3; days[m].add(d.id); } else if ((e.secundarios || []).includes(m)) sets[m] += (it.series || 3)/2; }
+  }
+  const fmt = n => n.toLocaleString('es-AR'), label = m => muscleNames[m].toLowerCase(), list = ms => ms.map(label).join(', ');
+  const good = [], bad = [], tips = [];
+  const ok = allMuscles.filter(m => sets[m] >= 10 && sets[m] <= 20), twice = bigMuscles.filter(m => days[m].size >= 2);
+  if (ok.length) good.push('Buen volumen semanal (10 a 20 series) en '+list(ok)+'.');
+  if (twice.length) good.push('Trabajás '+list(twice)+' en 2 o más días: repartir el volumen rinde más que todo junto.');
+  for (const m of bigMuscles.filter(m => sets[m] < 6)) {
+    bad.push('Poco volumen de '+label(m)+' ('+fmt(sets[m])+' series por semana).');
+    const opts = exercises().filter(x => !x.base && !['abru','cardio'].includes(x.grupo) && (x.musculos || []).includes(m) && !used.has(x.id)).slice(0,2);
+    if (opts.length) tips.push('Para '+label(m)+': sumá 3 series de '+opts.map(name).join(' o ')+' en algún día.');
+  }
+  for (const m of allMuscles.filter(m => sets[m] > 22)) bad.push('Mucho volumen de '+label(m)+' ('+fmt(sets[m])+' series): si no recuperás entre sesiones, sacá 2 o 3 series.');
+  const push = sets.chest, pull = sets.lats+sets['middle back'];
+  if (push && pull >= push) good.push('Tirás tanto o más de lo que empujás (espalda '+fmt(pull)+' vs pecho '+fmt(push)+'): bueno para la postura y los hombros.');
+  else if (push) { bad.push('Más empuje que tirón (pecho '+fmt(push)+' vs espalda '+fmt(pull)+').'); tips.push('Sumá un remo para equilibrar.'); }
+  // Abdominales y cardio no alargan tanto la sesión: se cuentan solo los de fuerza.
+  const count = d => d.ejercicios.filter(it => !['cardio','abdomen'].includes(exercises().find(x => x.id === it.id)?.grupo)).length, long = p.dias.filter(d => count(d) > 8);
+  if (p.dias.length && !long.length) good.push('Días de '+Math.min(...p.dias.map(count))+' a '+Math.max(...p.dias.map(count))+' ejercicios de fuerza: duración razonable.');
+  long.forEach(d => bad.push(d.nombre+' es largo ('+count(d)+' ejercicios de fuerza): el final suele salir con menos calidad.'));
+  if (sets.quadriceps >= 6 && Math.max(sets.biceps,sets.triceps) > sets.quadriceps) bad.push('Más series de brazos (bíceps '+fmt(sets.biceps)+', tríceps '+fmt(sets.triceps)+') que de cuádriceps ('+fmt(sets.quadriceps)+'): si las piernas son prioridad, cambiá un ejercicio de brazos por uno de cuádriceps.');
+  if (p.dias.some(d => d.ejercicios.some(it => /\d\s*[–-]\s*\d/.test(it.objetivo || '')))) tips.push('Progresión: cuando hagas todas las series en el tope del rango (por ejemplo 3 × 12 en un 8–12), subí un poco el peso y volvé al piso del rango.');
+  if (!cardio) tips.push('No hay cardio cargado: si lo hacés, agregalo para que quede registrado.');
+  const legs = ['quadriceps','glutes','hamstrings','adductors','abductors','calves'].reduce((a,m) => a+sets[m],0), total = Object.values(sets).reduce((a,b) => a+b,0);
+  if (total) tips.push('Reparto estimado: '+Math.round(100*legs/total)+'% piernas y glúteos, '+Math.round(100-100*legs/total)+'% torso, brazos y abdomen.');
+  return {sets,good,bad,tips};
+}
+function analysisHTML(p) {
+  const {sets,good,bad,tips} = analyzeRoutine(p), ul = items => items.length ? '<ul>'+items.map(t => '<li>'+escapeHTML(t)+'</li>').join('')+'</ul>' : '<p class="muted">Nada para marcar.</p>';
+  return '<details class="analysis"><summary>Análisis de la rutina</summary>'+muscleMap({volume:sets})+'<h3>Puntos fuertes</h3>'+ul(good)+'<h3>Para mejorar</h3>'+ul(bad)+'<h3>Ideas</h3>'+ul(tips)+'<small class="muted">Estimado con las series objetivo (3 si no hay), haciendo cada día una vez por semana. Músculo principal cuenta 1 serie y secundario media.</small></details>';
 }
 function renderRoutines() {
-  $('#app').innerHTML = `<p class="eyebrow">Tu plan de entrenamiento</p><h1>Mis rutinas</h1>${settings.rutinas.length ? settings.rutinas.map(r => `<section class="panel"><div class="row between"><h2>${escapeHTML(r.nombre)}</h2><button data-routine-rename="${escapeHTML(r.id)}" aria-label="Renombrar rutina">✎</button></div>${r.ejercicios.map((id,i) => { const e = exercises().find(e => e.id === id); return `<div class="routine-item"><strong>${escapeHTML(e ? name(e) : id)}</strong><div class="row"><button data-routine-move="${escapeHTML(r.id)}" data-index="${i}" data-direction="-1" aria-label="Subir ejercicio" ${i === 0 ? 'disabled' : ''}>↑</button><button data-routine-move="${r.id}" data-index="${i}" data-direction="1" aria-label="Bajar ejercicio" ${i === r.ejercicios.length-1 ? 'disabled' : ''}>↓</button><button data-routine-remove="${escapeHTML(r.id)}" data-index="${i}" aria-label="Quitar ejercicio">×</button></div></div>`; }).join('')}<div class="actions"><button data-routine-add="${escapeHTML(r.id)}">Agregar ejercicio</button><button class="danger" data-routine-delete="${escapeHTML(r.id)}">Borrar rutina</button></div></section>`).join('') : '<p class="muted">Armá tu primer día de entrenamiento.</p>'}<button class="primary wide" id="create-routine">Crear Día ${settings.rutinas.length+1}</button>`;
+  $('#app').innerHTML = `<p class="eyebrow">Tu plan de entrenamiento</p><h1>Mis rutinas</h1>${settings.rutinas.map(p => `<section class="panel"><div class="row between"><h2>${escapeHTML(p.nombre)}</h2><button data-program-rename="${escapeHTML(p.id)}" aria-label="Renombrar rutina">✎</button></div>${p.dias.map(r => `<details class="routine-day" data-open-day="${escapeHTML(r.id)}" ${openDays.has(r.id) ? 'open' : ''}><summary><strong>${escapeHTML(r.nombre)}</strong><small>${r.ejercicios.length} ejercicio${r.ejercicios.length === 1 ? '' : 's'}</small></summary><button data-routine-rename="${escapeHTML(r.id)}">✎ Renombrar día</button>${r.ejercicios.map((it,i) => { const e = exercises().find(e => e.id === it.id); return `<div class="routine-item"><div><strong>${escapeHTML(e ? name(e) : it.id)}</strong>${it.objetivo ? `<small class="target">${escapeHTML(it.objetivo)}</small>` : ''}</div><div class="row"><button data-routine-move="${escapeHTML(r.id)}" data-index="${i}" data-direction="-1" aria-label="Subir ejercicio" ${i === 0 ? 'disabled' : ''}>↑</button><button data-routine-move="${escapeHTML(r.id)}" data-index="${i}" data-direction="1" aria-label="Bajar ejercicio" ${i === r.ejercicios.length-1 ? 'disabled' : ''}>↓</button><button data-routine-target="${escapeHTML(r.id)}" data-index="${i}" aria-label="Editar series y repeticiones">✎</button><button data-swap-open="r|${escapeHTML(r.id)}|${i}" aria-label="Cambiar por un ejercicio parecido">⇄</button><button data-routine-remove="${escapeHTML(r.id)}" data-index="${i}" aria-label="Quitar ejercicio">×</button></div>${swapHTML(`r|${r.id}|${i}`,it.id,r.ejercicios.map(x => x.id))}</div>`; }).join('')}<div class="actions"><button data-routine-add="${escapeHTML(r.id)}">Agregar ejercicio</button><button class="danger" data-routine-delete="${escapeHTML(r.id)}">Borrar día</button></div></details>`).join('')}<div class="actions"><button data-program-add-day="${escapeHTML(p.id)}">Agregar día</button><button class="danger" data-program-delete="${escapeHTML(p.id)}">Borrar rutina</button></div>${analysisHTML(p)}</section>`).join('') || '<p class="muted">Armá tu primera rutina y adentro sus días.</p>'}<button class="primary wide" id="create-routine">Nueva rutina</button>`;
 }
 function rememberDay() {
   const form = $('#day-form');
@@ -347,20 +419,25 @@ async function openDay(date,version) {
   const history = overlayRows(await cachedRead('records',db.from('registros').select('*').eq('user_id',owner).order('fecha',{ascending:false}).order('creado',{ascending:false})),'registros').filter(r => r.fecha <= date);
   const day = days.find(d => d.fecha === date);
   if (version !== routeVersion) return;
-  dayDraft = {owner,fecha:date,fue:day?.fue ?? null,rutina:day?.rutina || '',comentario:day?.comentario || '',entries:history.filter(r => r.fecha === date).filter((r,i,all) => all.findIndex(x => x.ejercicio === r.ejercicio) === i).map(r => ({...r,series:r.series.map(s => ({...s}))}))};
+  dayDraft = {owner,fecha:date,fue:day?.fue ?? null,rutina:day?.rutina || '',comentario:day?.comentario || '',entries:history.filter(r => r.fecha === date).filter((r,i,all) => all.findIndex(x => x.ejercicio === r.ejercicio) === i).map(r => ({...r,series:r.series.map(s => ({...s}))})).sort((a,b) => (a.creado || '~').localeCompare(b.creado || '~'))}; // en el orden en que se cargaron; lo pendiente sin subir va al final
   dayDraft.history = history;
-  dayDrafts.set(key,dayDraft); addRoutineEntries(); renderDay();
+  dayDrafts.set(key,dayDraft); addRoutineEntries(!day && !dayDraft.entries.length); renderDay();
 }
-function addDayEntry(id) {
-  if (dayDraft.entries.some(e => e.ejercicio === id)) return;
+// item = ejercicio de la rutina: completa tantas series como pida el objetivo, con el peso de la última vez o el del objetivo.
+function addDayEntry(id,item = {}) {
+  const found = dayDraft.entries.find(e => e.ejercicio === id);
+  if (found) { found.objetivo ||= item.objetivo || ''; return; }
   dayDraft.removed = (dayDraft.removed || []).filter(value => value !== id);
   const last = (dayDraft.history || []).find(r => r.ejercicio === id && r.fecha <= dayDraft.fecha);
-  dayDraft.entries.push({ejercicio:id,implemento:last?.implemento || '',nota:'',series:last?.series.map(s => ({...s})) || [{}]});
+  const series = last?.series.map(s => ({...s})) || [Object.fromEntries(['kg','reps','seg','min'].filter(k => item[k] !== undefined).map(k => [k,item[k]]))];
+  while (series.length < (item.series || 1)) series.push(repeatSeries(series));
+  dayDraft.entries.push({ejercicio:id,implemento:last?.implemento || '',nota:'',series,objetivo:item.objetivo || ''});
 }
-function addRoutineEntries() { settings.rutinas.find(r => r.id === dayDraft.rutina)?.ejercicios.forEach(addDayEntry); }
+// fill=false (día ya guardado): solo muestra objetivos, no vuelve a sumar lo que se quitó o se cambió.
+function addRoutineEntries(fill = true) { findRoutineDay(settings.rutinas,dayDraft.rutina)?.ejercicios.forEach(it => { const found = dayDraft.entries.find(e => e.ejercicio === it.id); if (found) found.objetivo ||= it.objetivo || ''; else if (fill) addDayEntry(it.id,it); }); }
 function renderDay() {
   const d = dayDraft;
-  $('#app').innerHTML = `<a class="button back" href="#resumen">‹ Resumen</a><h1 class="day-title">${escapeHTML(new Date(d.fecha+"T12:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}))}</h1><form id="day-form"><div class="actions"><button type="button" data-attendance="true" aria-pressed="${d.fue === true}" class="${d.fue === true ? 'primary' : ''}">Fui</button><button type="button" data-attendance="false" aria-pressed="${d.fue === false}" class="${d.fue === false ? 'primary' : ''}">No fui</button><button type="button" id="clear-attendance">Borrar marca</button></div><label>Qué día de rutina hice<select id="day-routine"><option value="">Libre</option>${settings.rutinas.map(r => `<option value="${escapeHTML(r.id)}" ${d.rutina === r.id ? 'selected' : ''}>${escapeHTML(r.nombre)}</option>`).join('')}</select></label><label>Comentario del día<textarea name="comentario">${escapeHTML(d.comentario)}</textarea></label><h2>Entrenamiento</h2>${d.entries.map(entry => { const e = exercises().find(e => e.id === entry.ejercicio); if (!e) return ''; return `<section class="panel compact" data-day-exercise="${escapeHTML(e.id)}"><div class="row">${image(e)}<h3>${escapeHTML(name(e))}</h3><button type="button" class="danger" data-day-remove="${escapeHTML(e.id)}">Quitar</button></div><label>Implemento<select><option value="">Sin especificar</option>${implementsList.map(value => `<option ${entry.implemento === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><div class="day-series">${entry.series.map(s => seriesHTML(s,e)).join('')}</div><button type="button" data-day-series="${escapeHTML(e.id)}" class="wide">+ Repetir serie</button><label>Nota<textarea>${escapeHTML(entry.nota)}</textarea></label></section>`; }).join('')}<button type="button" id="day-add-exercise" class="wide">Agregar otro ejercicio</button><button class="primary wide" type="submit">Guardar día</button></form>`;
+  $('#app').innerHTML = `<a class="button back" href="#resumen">‹ Resumen</a><h1 class="day-title">${escapeHTML(new Date(d.fecha+"T12:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"}))}</h1><form id="day-form"><div class="actions"><button type="button" data-attendance="true" aria-pressed="${d.fue === true}" class="${d.fue === true ? 'primary' : ''}">Fui</button><button type="button" data-attendance="false" aria-pressed="${d.fue === false}" class="${d.fue === false ? 'primary' : ''}">No fui</button><button type="button" id="clear-attendance">Borrar marca</button></div><label>Qué día de rutina hice<select id="day-routine"><option value="">Libre</option>${settings.rutinas.map(p => `<optgroup label="${escapeHTML(p.nombre)}">${p.dias.map(r => `<option value="${escapeHTML(r.id)}" ${d.rutina === r.id ? 'selected' : ''}>${escapeHTML(r.nombre)}</option>`).join('')}</optgroup>`).join('')}</select></label><label>Comentario del día<textarea name="comentario">${escapeHTML(d.comentario)}</textarea></label><h2>Entrenamiento</h2>${d.entries.map(entry => { const e = exercises().find(e => e.id === entry.ejercicio); if (!e) return ''; return `<section class="panel compact" data-day-exercise="${escapeHTML(e.id)}"><div class="row">${image(e)}<h3>${escapeHTML(name(e))}${entry.objetivo ? `<small class="target">Objetivo: ${escapeHTML(entry.objetivo)}</small>` : ''}</h3><button type="button" data-swap-open="d|${escapeHTML(e.id)}" aria-label="Cambiar por un ejercicio parecido">⇄</button><button type="button" class="danger" data-day-remove="${escapeHTML(e.id)}">Quitar</button></div>${swapHTML(`d|${e.id}`,e.id,d.entries.map(x => x.ejercicio))}<label>Implemento<select><option value="">Sin especificar</option>${implementsList.map(value => `<option ${entry.implemento === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><div class="day-series">${entry.series.map(s => seriesHTML(s,e)).join('')}</div><button type="button" data-day-series="${escapeHTML(e.id)}" class="wide">+ Repetir serie</button><label>Nota<textarea>${escapeHTML(entry.nota)}</textarea></label></section>`; }).join('')}<button type="button" id="day-add-exercise" class="wide">Agregar otro ejercicio</button><button class="primary wide" type="submit">Guardar día</button></form>`;
   $('#day-routine').onchange = event => { rememberDay(); d.rutina = event.target.value; addRoutineEntries(); renderDay(); };
   $('#day-form').onsubmit = saveDay;
 }
@@ -410,7 +487,8 @@ async function selectExercise(id) {
   const target = selectionTarget;
   if (target.type === 'day') { addDayEntry(id); selectionTarget = null; location.hash = `#dia/${dayDraft.fecha}`; }
   else {
-    const rutinas = settings.rutinas.map(r => r.id === target.id ? {...r,ejercicios:[...new Set([...r.ejercicios,id])]} : r);
+    const rutinas = structuredClone(settings.rutinas), day = findRoutineDay(rutinas,target.id);
+    if (day && !day.ejercicios.some(it => it.id === id)) day.ejercicios.push({id});
     busy = true; await saveSettings({...settings,rutinas}); selectionTarget = null; location.hash = '#rutinas';
   }
 }
@@ -423,14 +501,39 @@ async function handleRoutineDayClick(button) {
   if (data.daySeries) { rememberDay(); dayDraft.entries.find(e => e.ejercicio === data.daySeries).series.push(repeatSeries(dayDraft.entries.find(e => e.ejercicio === data.daySeries).series)); renderDay(); return true; }
   if (button.id === 'day-add-exercise' || data.routineAdd) { rememberDay(); selectionTarget = data.routineAdd ? {type:'routine',id:data.routineAdd} : {type:'day'}; location.hash = '#registrar'; return true; }
   if (button.id === 'cancel-selection') { const target = selectionTarget; selectionTarget = null; location.hash = target.type === 'day' ? `#dia/${dayDraft.fecha}` : '#rutinas'; return true; }
-  if (button.id === 'create-routine' || data.routineRename || data.routineDelete || data.routineRemove || data.routineMove) {
-    let rutinas = settings.rutinas.map(r => ({...r,ejercicios:[...r.ejercicios]}));
-    const r = rutinas.find(r => r.id === (data.routineRename || data.routineDelete || data.routineRemove || data.routineMove));
-    if (button.id === 'create-routine') rutinas.push({id:crypto.randomUUID().slice(0,8),nombre:`Día ${rutinas.length+1}`,ejercicios:[]});
-    if (data.routineRename) { const value = prompt('Nombre de la rutina',r.nombre); if (!value?.trim()) return true; r.nombre = value.trim(); }
-    if (data.routineDelete) { if (!confirm('¿Borrar esta rutina? Los entrenamientos guardados se conservan.')) return true; rutinas = rutinas.filter(item => item.id !== r.id); }
+  if (data.swapOpen) { swapOpen = swapOpen === data.swapOpen ? null : data.swapOpen; if ($('#day-form')) { rememberDay(); renderDay(); } else renderRoutines(); return true; }
+  if (data.swapTo && swapOpen?.startsWith('d|')) {
+    rememberDay(); const old = swapOpen.slice(2); swapOpen = null;
+    const i = dayDraft.entries.findIndex(e => e.ejercicio === old);
+    if (i >= 0 && !dayDraft.entries.some(e => e.ejercicio === data.swapTo)) {
+      const [prev] = dayDraft.entries.splice(i,1);
+      addDayEntry(data.swapTo,{series:prev.series.length,objetivo:prev.objetivo});
+      dayDraft.entries.splice(i,0,dayDraft.entries.pop());
+      dayDraft.removed = [...new Set([...(dayDraft.removed || []),old])];
+    }
+    renderDay(); return true;
+  }
+  const newId = () => crypto.randomUUID().slice(0,8);
+  if (button.id === 'create-routine' || data.swapTo || data.programRename || data.programDelete || data.programAddDay || data.routineRename || data.routineDelete || data.routineRemove || data.routineMove || data.routineTarget) {
+    let rutinas = structuredClone(settings.rutinas);
+    const p = rutinas.find(p => p.id === (data.programRename || data.programDelete || data.programAddDay));
+    const r = findRoutineDay(rutinas,data.routineRename || data.routineDelete || data.routineRemove || data.routineMove || data.routineTarget);
+    if (button.id === 'create-routine') { const value = prompt('Nombre de la rutina','Mi rutina'); if (!value?.trim()) return true; rutinas.push({id:newId(),nombre:value.trim(),dias:[{id:newId(),nombre:'Día 1',ejercicios:[]}]}); }
+    if (data.swapTo) { const [,dayId,index] = (swapOpen || '').split('|'); swapOpen = null; const day = findRoutineDay(rutinas,dayId), it = day?.ejercicios[Number(index)]; if (!it || day.ejercicios.some(x => x.id === data.swapTo)) return true; it.id = data.swapTo; }
+    if (data.programRename) { const value = prompt('Nombre de la rutina',p.nombre); if (!value?.trim()) return true; p.nombre = value.trim(); }
+    if (data.programDelete) { if (!confirm(`¿Borrar la rutina "${p.nombre}" con todos sus días? Los entrenamientos guardados se conservan.`)) return true; rutinas = rutinas.filter(item => item.id !== p.id); }
+    if (data.programAddDay) p.dias.push({id:newId(),nombre:`Día ${p.dias.length+1}`,ejercicios:[]});
+    if (data.routineRename) { const value = prompt('Nombre del día',r.nombre); if (!value?.trim()) return true; r.nombre = value.trim(); }
+    if (data.routineDelete) { if (!confirm('¿Borrar este día? Los entrenamientos guardados se conservan.')) return true; rutinas.forEach(item => { item.dias = item.dias.filter(d => d.id !== r.id); }); }
     if (data.routineRemove) r.ejercicios.splice(Number(data.index),1);
     if (data.routineMove) { const i = Number(data.index), j = i+Number(data.direction); if (j >= 0 && j < r.ejercicios.length) [r.ejercicios[i],r.ejercicios[j]] = [r.ejercicios[j],r.ejercicios[i]]; }
+    if (data.routineTarget) {
+      const it = r.ejercicios[Number(data.index)], value = prompt('Series × repeticiones (ej: 3 × 8-12). Vacío para borrar.',it.objetivo || '');
+      if (value === null) return true;
+      const n = value.match(/^\s*(\d+)\s*[x×]/i);
+      if (value.trim()) it.objetivo = value.trim(); else delete it.objetivo;
+      if (n) it.series = Number(n[1]); else delete it.series;
+    }
     const version = routeVersion; busy = true; await saveSettings({...settings,rutinas}); if (version === routeVersion) renderRoutines(); return true;
   }
   return false;
