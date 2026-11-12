@@ -1,0 +1,32 @@
+# Supabase gratis pausa el proyecto tras 7 días sin actividad: una consulta diaria lo mantiene activo.
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Consultar Supabase
+        run: |
+          URL=$(sed -nE "s/.*supabaseUrl: *'([^']+)'.*/\1/p" public/config.js)
+          KEY=$(sed -nE "s/.*supabaseKey: *'([^']+)'.*/\1/p" public/config.js)
+          test -n "$URL"
+          test -n "$KEY"
+          # Llamada real a la base (supabase/03-keepalive.sql); reintenta por si el proyecto está despertando.
+          for i in 1 2 3; do
+            CODE=$(curl -sS -o body.json -w '%{http_code}' --max-time 30 -X POST "$URL/rest/v1/rpc/keepalive" \
+              -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}') || CODE=000
+            echo "HTTP $CODE"; cat body.json 2>/dev/null || true; echo
+            case "$CODE" in 2??) exit 0 ;; esac
+            [ "$i" -eq 3 ] || sleep 20
+          done
+          echo "::error::Supabase no respondió. Si está pausado: entrar a supabase.com/dashboard y tocar Restore."
+          exit 1
