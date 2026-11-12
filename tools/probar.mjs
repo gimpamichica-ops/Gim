@@ -133,10 +133,10 @@ run("pickerGroup='piernas'; renderPicker()");
 assert.ok(element('#picker-results').innerHTML.includes('chip group-piernas'));
 const map = run("muscleMap({musculos:['chest'],secundarios:['biceps']})");
 assert.ok(map.includes('primary-muscle')); assert.ok(map.includes('region secondary'));
-assert.ok(map.includes('primary-swatch')); assert.ok(map.includes('#c9d1cc'));
+assert.ok(map.includes('primary-swatch')); assert.ok(map.includes('#344156'));
 assert.equal((read('index.html').match(/class="icon"/g)||[]).length,6);
-assert.ok(read('styles.css').includes('.primary-muscle{fill:#ff6a3d'));
-assert.ok(read('styles.css').includes('.secondary{fill:#38bdf8'));
+assert.ok(read('styles.css').includes('.primary-muscle{fill:var(--coral)'));
+assert.ok(read('styles.css').includes('.secondary{fill:var(--accent)'));
 console.log('OK - presentacion, mapa, chips, iconos y progreso Abru.');
 
 // All group exercises, including custom ones, remain reachable; search ignores accents/case.
@@ -239,7 +239,7 @@ const monthly=run("progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:1
 assert.ok(monthly.includes('30 min')); assert.ok(!monthly.includes('45 min')); assert.ok(monthly.includes('2 km'));
 assert.equal(run("seriesHTML({seg:90},{grupo:'abdomen'})").includes('value="1:30"'),true);
 assert.ok(!run("seriesHTML({},{grupo:'abru'})").includes('required'));
-assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v8'"));
+assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v9'"));
 console.log('OK · series opcionales, tiempo, métricas independientes y mejor día del mes.');
 
 assert.equal(run("parseDaySeries([{seg:formatTime(60.5)}])[0].seg"),60.5);
@@ -307,7 +307,7 @@ assert.equal(offlineRecords.size,0);assert.equal(run('pending().length'),0);
 const volume = run("weeklyVolume([{ejercicio:'volume-test',fecha:'2026-11-08',series:[{},{}]},{ejercicio:'volume-test',fecha:'2026-11-09',series:[{},{}]},{ejercicio:'volume-test',fecha:'2026-11-15',series:[{}]},{ejercicio:'volume-test',fecha:'2026-11-16',series:[{}]},{ejercicio:'unknown',fecha:'2026-11-10',series:[{}]}],'2026-11-15')");
 assert.equal(volume.start,'2026-11-09');assert.equal(volume.end,'2026-11-16');
 assert.equal(volume.totals.chest,3);assert.equal(volume.totals.triceps,1.5);assert.equal(volume.totals.calves,0);
-assert.ok(run('muscleMap({volume:{chest:3,triceps:1.5}})').includes('hsl(18 90%'));
+assert.ok(run('muscleMap({volume:{chest:3,triceps:1.5}})').includes('hsl(14 100%'));
 assert.deepEqual(JSON.parse(run('JSON.stringify(repeatSeries([]))')),{});
 for (const series of [[{kg:'0',reps:'8',seg:'1:30'}],[{min:'20',km:'2,5'}]]) {
   context.repeatedInput=series;
@@ -329,3 +329,32 @@ assert.ok(element('#app').innerHTML.includes('Esta semana'));
 assert.ok(element('#message').textContent.includes('Sin se'));
 assert.ok(!element('#app').innerHTML.includes('No pudimos iniciar'));
 console.log('OK - arranque con sesion persistida y red caida.');
+
+// Visual resources remain paired, accessible and available in the offline shell.
+for (const [id,dir] of [['front-lever','Front_Lever'],['dragon-flag','Dragon_Flag']]) {
+  const exercise=catalog.find(e=>e.id===id);
+  for (const [field,index] of [['img',0],['img2',1]]) {
+    const path='img/'+dir+'/'+index+'.svg';
+    assert.equal(exercise[field],path); assert.ok(shell.includes(path));
+    assert.ok(read(path).includes('viewBox="0 0 360 240"')); assert.ok(read(path).includes('<title'));
+  }
+  assert.notEqual(read(exercise.img),read(exercise.img2));
+}
+for (const [id,label] of [['Barbell_Squat','Barra'],['Dumbbell_Lunges','Mancuerna'],['Cable_Crunch','Polea'],['Smith_Machine_Squat','Máquina'],['front-lever','Peso corporal']]) {
+  context.visualExercise=catalog.find(e=>e.id===id); assert.equal(run('equipmentLabel(visualExercise)'),label);
+}
+assert.equal(run("equipmentLabel({id:'propio',nombre:'Mi ejercicio'})"),'A elección');
+console.log('OK - ilustraciones 3:2, posiciones, caché offline y chips de implemento.');
+
+// Text palette must keep AA contrast, including filled buttons and status surfaces.
+const styles=read('styles.css');
+const colorToken = name => styles.match(new RegExp('--'+name+':(#[0-9a-f]{6})'))[1];
+const luminance = hex => hex.slice(1).match(/../g).map(c=>parseInt(c,16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4).reduce((sum,c,i)=>sum+c*[.2126,.7152,.0722][i],0);
+for (const [fg,bg] of [
+  ...['text','muted','accent','coral'].flatMap(fg=>['bg','panel'].map(bg=>[colorToken(fg),colorToken(bg)])),
+  ['#ffffff',colorToken('blue')],['#f2cf87','#2d2518'],['#ffe3e3','#43272b'],['#ffb4b4','#342025'],['#b2e4d0','#17382f'],[colorToken('muted'),'#192538']
+]) {
+  const levels=[luminance(fg),luminance(bg)].sort((a,b)=>b-a);
+  assert.ok((levels[0]+.05)/(levels[1]+.05)>=4.5,'Contraste AA: '+fg+' sobre '+bg);
+}
+console.log('OK - contraste AA de texto, botones y estados.');

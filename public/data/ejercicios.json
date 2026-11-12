@@ -1064,6 +1064,8 @@
  },
  {
   "id": "front-lever",
+  "img": "img/Front_Lever/0.svg",
+  "img2": "img/Front_Lever/1.svg",
   "nombre": "Front lever",
   "grupo": "espalda",
   "musculos": [
@@ -1992,6 +1994,8 @@
  },
  {
   "id": "dragon-flag",
+  "img": "img/Dragon_Flag/0.svg",
+  "img2": "img/Dragon_Flag/1.svg",
   "nombre": "Dragon flag",
   "grupo": "abdomen",
   "musculos": [
