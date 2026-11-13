@@ -366,7 +366,7 @@ function analyzeRoutine(p) {
     const e = exercises().find(x => x.id === it.id); if (!e) continue;
     used.add((e.base || e).id);
     if (e.grupo === 'cardio') { cardio = true; continue; }
-    for (const m of allMuscles) { if ((e.musculos || []).includes(m)) { sets[m] += it.series || 3; days[m].add(d.id); } else if ((e.secundarios || []).includes(m)) sets[m] += (it.series || 3)/2; }
+    for (const m of allMuscles) { if ((e.musculos || []).includes(m)) { sets[m] += it.series || it.sets?.length || 3; days[m].add(d.id); } else if ((e.secundarios || []).includes(m)) sets[m] += (it.series || it.sets?.length || 3)/2; }
   }
   const fmt = n => n.toLocaleString('es-AR'), label = m => muscleNames[m].toLowerCase(), list = ms => ms.map(label).join(', ');
   const good = [], bad = [], tips = [];
@@ -423,13 +423,13 @@ async function openDay(date,version) {
   dayDraft.history = history;
   dayDrafts.set(key,dayDraft); addRoutineEntries(!day && !dayDraft.entries.length); renderDay();
 }
-// item = ejercicio de la rutina: completa tantas series como pida el objetivo, con el peso de la última vez o el del objetivo.
+// item = ejercicio de la rutina: completa tantas series como pida el objetivo, con el peso de la última vez, el de cada serie (item.sets) o el del objetivo.
 function addDayEntry(id,item = {}) {
   const found = dayDraft.entries.find(e => e.ejercicio === id);
   if (found) { found.objetivo ||= item.objetivo || ''; return; }
   dayDraft.removed = (dayDraft.removed || []).filter(value => value !== id);
   const last = (dayDraft.history || []).find(r => r.ejercicio === id && r.fecha <= dayDraft.fecha);
-  const series = last?.series.map(s => ({...s})) || [Object.fromEntries(['kg','reps','seg','min'].filter(k => item[k] !== undefined).map(k => [k,item[k]]))];
+  const series = last?.series.map(s => ({...s})) || item.sets?.map(s => ({...s})) || [Object.fromEntries(['kg','reps','seg','min'].filter(k => item[k] !== undefined).map(k => [k,item[k]]))];
   while (series.length < (item.series || 1)) series.push(repeatSeries(series));
   dayDraft.entries.push({ejercicio:id,implemento:last?.implemento || '',nota:'',series,objetivo:item.objetivo || ''});
 }
@@ -532,7 +532,7 @@ async function handleRoutineDayClick(button) {
       if (value === null) return true;
       const n = value.match(/^\s*(\d+)\s*[x×]/i);
       if (value.trim()) it.objetivo = value.trim(); else delete it.objetivo;
-      if (n) it.series = Number(n[1]); else delete it.series;
+      if (n) { it.series = Number(n[1]); if (it.sets) it.sets = it.sets.slice(0,it.series); } else delete it.series;
     }
     const version = routeVersion; busy = true; await saveSettings({...settings,rutinas}); if (version === routeVersion) renderRoutines(); return true;
   }

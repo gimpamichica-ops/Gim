@@ -440,6 +440,17 @@
   ]
  },
  {
+  "id": "hack-calf-raise",
+  "nombre": "Gemelos en hack",
+  "grupo": "piernas",
+  "img": "img/Standing_Calf_Raises/0.jpg",
+  "img2": "img/Standing_Calf_Raises/1.jpg",
+  "musculos": [
+   "calves"
+  ],
+  "secundarios": []
+ },
+ {
   "id": "Barbell_Bench_Press_-_Medium_Grip",
   "nombre": "Press de banca",
   "grupo": "pecho",
@@ -1094,6 +1105,20 @@
   "como": "Colgado de la barra con brazos rectos, llevá el cuerpo a la horizontal mirando al techo y aguantá. Progresá con rodillas al pecho (tuck), una pierna o abierto."
  },
  {
+  "id": "Kneeling_Single-Arm_High_Pulley_Row",
+  "nombre": "Remo arrodillado a una mano en polea alta",
+  "grupo": "espalda",
+  "img": "img/Kneeling_Single-Arm_High_Pulley_Row/0.jpg",
+  "img2": "img/Kneeling_Single-Arm_High_Pulley_Row/1.jpg",
+  "musculos": [
+   "lats"
+  ],
+  "secundarios": [
+   "biceps",
+   "middle back"
+  ]
+ },
+ {
   "id": "Standing_Military_Press",
   "nombre": "Press militar",
   "grupo": "hombros",
@@ -1716,6 +1741,17 @@
    "chest",
    "shoulders"
   ]
+ },
+ {
+  "id": "Palms-Up_Barbell_Wrist_Curl_Over_A_Bench",
+  "nombre": "Curl de muñeca con barra",
+  "grupo": "brazos",
+  "img": "img/Palms-Up_Barbell_Wrist_Curl_Over_A_Bench/0.jpg",
+  "img2": "img/Palms-Up_Barbell_Wrist_Curl_Over_A_Bench/1.jpg",
+  "musculos": [
+   "forearms"
+  ],
+  "secundarios": []
  },
  {
   "id": "Walking_Treadmill",
