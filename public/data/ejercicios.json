@@ -2097,6 +2097,29 @@
   "secundarios": []
  },
  {
+  "id": "abdominales-colchoneta",
+  "nombre": "Abdominales en colchoneta",
+  "grupo": "abdomen",
+  "img": "img/Plank/0.jpg",
+  "img2": "img/Dead_Bug/0.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": [],
+  "como": "Ejercicio libre en colchoneta: anotá en la nota cuál hiciste (plancha, plancha lateral, dead bug, puente…). Con escoliosis, priorizá los que mantienen la columna quieta y evitá giros con peso."
+ },
+ {
+  "id": "Dead_Bug",
+  "nombre": "Dead bug",
+  "grupo": "abdomen",
+  "img": "img/Dead_Bug/0.jpg",
+  "img2": "img/Dead_Bug/1.jpg",
+  "musculos": [
+   "abdominals"
+  ],
+  "secundarios": []
+ },
+ {
   "id": "abru-colgada",
   "nombre": "1. Colgada pasiva",
   "grupo": "abru",

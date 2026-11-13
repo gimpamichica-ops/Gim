@@ -36,7 +36,7 @@ function equipmentLabel(e) {
   if (/Dumbbell|Goblet|Hammer_Curls|Concentration_Curls|Side_Lateral|Reverse_Flyes|Seated_Bent-Over/i.test(source)) return 'Mancuerna';
   if (/Machine|Leverage|Leg_Press|Leg_Extensions|Leg_Curl|Thigh_|Calf_Raise|Hack_Squat|Butterfly|Treadmill|Stationary|Elliptical|Stairmaster|Recumbent/i.test(source)) return 'Máquina';
   if (/Barbell|EZ-Bar|Deadlift|Good_Morning|Military_Press|Lying_Triceps_Press|T-Bar_Row/i.test(source)) return 'Barra';
-  if (/Pullups|Chin-Up|Dips|Pushups|Inverted_Row|Muscle_Up|front-lever|Front_Lever|dragon-flag|Dragon_Flag|Crunch|Sit-Up|Plank|Side_Bridge|Leg_Raise|Knee_Hip_Raise|Mountain_Climbers|Air_Bike/i.test(source)) return 'Peso corporal';
+  if (/Pullups|Chin-Up|Dips|Pushups|Inverted_Row|Muscle_Up|front-lever|Front_Lever|dragon-flag|Dragon_Flag|Crunch|Sit-Up|Plank|Side_Bridge|Dead_Bug|Leg_Raise|Knee_Hip_Raise|Mountain_Climbers|Air_Bike/i.test(source)) return 'Peso corporal';
   return 'A elección';
 }
 function login() {

@@ -10,7 +10,7 @@ const root = new URL('../public/',import.meta.url);
 const read = path => readFileSync(new URL(path,root),'utf8');
 const exists = path => assert.ok(existsSync(new URL(path,root)),`Falta ${path}`);
 const catalog = JSON.parse(read('data/ejercicios.json'));
-assert.equal(catalog.length,169);
+assert.equal(catalog.length,171);
 assert.equal(new Set(catalog.map(e=>e.id)).size,catalog.length,'IDs duplicados');
 for (const e of catalog) { assert.ok(e.id && e.nombre && e.grupo); for (const field of ['img','img2']) if (e[field]) exists(e[field]); }
 assert.equal(catalog.filter(e=>e.grupo==='abru').length,9);
@@ -240,7 +240,7 @@ const monthly=run("progress({grupo:'cardio'},[{fecha:'2026-10-01',series:[{min:1
 assert.ok(monthly.includes('30 min')); assert.ok(!monthly.includes('45 min')); assert.ok(monthly.includes('2 km'));
 assert.equal(run("seriesHTML({seg:90},{grupo:'abdomen'})").includes('value="1:30"'),true);
 assert.ok(!run("seriesHTML({},{grupo:'abru'})").includes('required'));
-assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v11'"));
+assert.ok(read('index.html').includes('aria-label="Ajustes"')); assert.ok(worker.includes("'gym-v12'"));
 console.log('OK · series opcionales, tiempo, métricas independientes y mejor día del mes.');
 
 assert.equal(run("parseDaySeries([{seg:formatTime(60.5)}])[0].seg"),60.5);

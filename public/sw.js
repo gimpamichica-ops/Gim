@@ -1,4 +1,4 @@
-const CACHE = 'gym-v11';
+const CACHE = 'gym-v12';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'config.js', 'vendor/supabase.js', 'data/ejercicios.json', 'manifest.webmanifest', 'icons/192.png', 'icons/512.png', 'icons/apple-touch.png', 'img/Front_Lever/0.svg', 'img/Front_Lever/1.svg', 'img/Dragon_Flag/0.svg', 'img/Dragon_Flag/1.svg'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('gym-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())); });
